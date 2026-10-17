@@ -1,0 +1,7 @@
+import axios from "axios";
+
+export function calculateAverage(values: number[]): number {
+    if (values.length === 0) return 0;
+    const sum = values.reduce((a, b) => a + b, 0);
+    return sum / values.length;
+}

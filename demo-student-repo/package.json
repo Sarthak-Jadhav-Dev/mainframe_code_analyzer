@@ -1,0 +1,15 @@
+{
+  "name": "student-portfolio-app",
+  "version": "1.0.0",
+  "description": "Student submission web application with mixed tech stack",
+  "main": "src/server.ts",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "express": "^4.19.2",
+    "axios": "^1.6.8",
+    "@prisma/client": "^5.14.0",
+    "@reduxjs/toolkit": "^2.2.5",
+    "vue": "^3.4.27"
+  }
+}
