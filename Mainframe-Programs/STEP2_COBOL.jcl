@@ -1,0 +1,17 @@
+//AUDCO01  JOB (ACCT),'STEP2-COBOL',CLASS=A,MSGCLASS=X
+//*===================================================================*
+//* REQUIREMENT 2: COBOL TWO-FILE MATCH-MERGE                         *
+//* READS FILE 1 (STUDENT.AUDIT.SORTED) AND FILE 2 (TECHREF)          *
+//* WRITES MATCHED RECORDS TO FILE 3 (STUDENT.AUDIT.COBOL)            *
+//*===================================================================*
+//STEP01   EXEC PGM=AUDCOBOL
+//STEPLIB  DD DSN=STUDENT.LOADLIB,DISP=SHR
+//SYSPRINT DD SYSOUT=*
+//AUDREC   DD DSN=STUDENT.AUDIT.SORTED,DISP=SHR
+//TECHREF  DD DSN=STUDENT.AUDIT.TECHREF,DISP=SHR
+//AUDRPT   DD DSN=STUDENT.AUDIT.COBOL,
+//            DISP=(NEW,CATLG,DELETE),
+//            SPACE=(CYL,(1,5),RLSE),
+//            DCB=(RECFM=FB,LRECL=80,BLKSIZE=800)
+//SYSOUT   DD SYSOUT=*
+/*
