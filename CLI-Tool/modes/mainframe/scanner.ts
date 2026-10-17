@@ -109,6 +109,98 @@ function computeHash(content: string): string {
     return crypto.createHash("md5").update(content).digest("hex").slice(0, 8).toUpperCase();
 }
 
+function extractImportedSymbols(importLine: string): string[] {
+    const symbols: string[] = [];
+    // import { a, b as c } from '...'
+    const namedMatch = importLine.match(/import\s*\{([^}]+)\}/);
+    if (namedMatch && namedMatch[1]) {
+        for (const part of namedMatch[1].split(",")) {
+            const clean = part.trim();
+            if (clean) {
+                const aliasMatch = clean.match(/\s+as\s+(\w+)/);
+                if (aliasMatch && aliasMatch[1]) {
+                    symbols.push(aliasMatch[1]);
+                } else {
+                    const idMatch = clean.match(/^(\w+)/);
+                    if (idMatch && idMatch[1]) symbols.push(idMatch[1]);
+                }
+            }
+        }
+    }
+    // import DefaultName from '...'
+    const defaultMatch = importLine.match(/import\s+([A-Za-z0-9_$]+)\s*(?:,|\s+from)/);
+    if (defaultMatch && defaultMatch[1] && defaultMatch[1] !== "type") {
+        symbols.push(defaultMatch[1]);
+    }
+    // const x = require('...')
+    const requireMatch = importLine.match(/(?:const|let|var)\s+([A-Za-z0-9_$]+|\{[^}]+\})\s*=\s*require/);
+    if (requireMatch && requireMatch[1]) {
+        if (requireMatch[1].startsWith("{")) {
+            const inner = requireMatch[1].slice(1, -1);
+            for (const s of inner.split(",")) {
+                const id = s.trim().split(":")[0]?.trim();
+                if (id) symbols.push(id);
+            }
+        } else {
+            symbols.push(requireMatch[1]);
+        }
+    }
+    return symbols;
+}
+
+function isTechUsedInBody(content: string, techName: string, symbols: string[]): boolean {
+    const lines = content.split("\n");
+    // Exclude import statements and top-level comments to check the actual code body
+    const bodyLines = lines.filter((l) => {
+        const trimmed = l.trim();
+        return !trimmed.startsWith("import ") &&
+               !trimmed.startsWith("import{") &&
+               !trimmed.startsWith("export * from") &&
+               !trimmed.startsWith("//") &&
+               !trimmed.startsWith("/*") &&
+               !trimmed.startsWith("*");
+    });
+    const bodyText = bodyLines.join("\n");
+
+    // Check if any explicitly imported identifier appears in the body
+    for (const sym of symbols) {
+        if (!sym || sym.length < 2) continue;
+        const symRegex = new RegExp(`\\b${sym}\\b`);
+        if (symRegex.test(bodyText)) {
+            return true;
+        }
+    }
+
+    // Technology-specific heuristic patterns
+    switch (techName.toUpperCase()) {
+        case "REACT":
+            return /<[A-Z][A-Za-z0-9]*|<\/|<React\.|use[A-Z][a-zA-Z0-9]*|React\./.test(bodyText);
+        case "NEXTJS":
+            return /useRouter|Link|Image|getServerSideProps|getStaticProps|NextResponse|NextRequest|redirect\(|notFound\(/.test(bodyText);
+        case "EXPRESS":
+            return /express\(|\.get\(|\.post\(|\.use\(|\.listen\(|Router\(/.test(bodyText);
+        case "SUPABASE":
+            return /createClient|supabase\.from|supabase\.auth|\.select\(|\.insert\(|\.update\(/.test(bodyText);
+        case "AXIOS":
+            return /axios\.get|axios\.post|axios\.put|axios\.delete|axios\(/.test(bodyText);
+        case "PRISMA":
+            return /prisma\.|new PrismaClient|\$queryRaw/.test(bodyText);
+        case "TAILWIND":
+            return /className=/.test(bodyText);
+        case "VUE":
+            return /<template|<script|defineComponent|ref\(|reactive\(/.test(bodyText);
+        case "SVELTE":
+            return /<script|\$state|\$derived/.test(bodyText);
+        case "REDUX":
+            return /useSelector|useDispatch|createSlice|configureStore/.test(bodyText);
+        case "ZUSTAND":
+            return /create\(|createStore\(/.test(bodyText);
+    }
+
+    const techRegex = new RegExp(`\\b${techName}\\b`, "i");
+    return techRegex.test(bodyText);
+}
+
 function detectImports(content: string): TechImport[] {
     const found: TechImport[] = [];
     const lines = content.split("\n");
@@ -119,12 +211,14 @@ function detectImports(content: string): TechImport[] {
         }
         for (const tech of TECH_PATTERNS) {
             if (tech.pattern.test(trimmed)) {
-                // Avoid duplicates per tech per file
                 if (!found.some((f) => f.techName === tech.name)) {
+                    const symbols = extractImportedSymbols(trimmed);
+                    const isUsed = isTechUsedInBody(content, tech.name, symbols);
                     found.push({
                         techName: tech.name,
                         category: tech.category,
-                        importLine: trimmed.slice(0, 100), // cap to 100 chars
+                        importLine: trimmed.slice(0, 100),
+                        isUsedInBody: isUsed,
                     });
                 }
             }
@@ -207,9 +301,10 @@ export async function scanRepository(
         for (const imp of file.imports) {
             records.push({
                 filePath: truncateTo(file.relativePath, 40),
+                fullPath: file.relativePath,
                 techName: truncateTo(imp.techName, 10),
                 contentHash: file.contentHash,
-                usageType: "UNKNOWN", // AI will update this later
+                usageType: imp.isUsedInBody ? "GENUINE" : "PSEUDO",
                 importCount: Math.min(file.importCount, 9999),
             });
         }
@@ -234,7 +329,8 @@ export function applyAiJudgments(
     judgments: Map<string, UsageType>,
 ): void {
     for (const record of result.records) {
-        const judgment = judgments.get(record.filePath);
+        const judgment = (record.fullPath && judgments.get(record.fullPath)) ||
+                         judgments.get(record.filePath);
         if (judgment) {
             record.usageType = judgment;
         }

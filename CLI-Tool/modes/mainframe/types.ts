@@ -13,6 +13,7 @@ export interface TechImport {
     techName: string;       // e.g. "react", "express", "axios"
     category: string;       // e.g. "frontend-framework", "backend", "http-client"
     importLine: string;     // The raw import line e.g. "import React from 'react'"
+    isUsedInBody?: boolean; // Static analysis heuristic: symbol invoked in body
 }
 
 /**
@@ -29,6 +30,7 @@ export interface TechImport {
  */
 export interface FlatFileRecord {
     filePath: string;       // max 40 chars, relative to repo root
+    fullPath?: string;      // untruncated relative path for reliable matching
     techName: string;       // max 10 chars
     contentHash: string;    // 8-char hex (first 8 chars of MD5)
     usageType: UsageType;   // max 10 chars
