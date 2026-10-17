@@ -1,25 +1,20 @@
 /**
  * Mainframe Codebase Auditor — JCL Job Templates
  * ------------------------------------------------
- * Generates all four JCL steps for the Hercules batch pipeline:
+ * Generates all JCL steps for the Hercules batch pipeline:
  *
- *   Step 1 (SORT)     — Sort flat file by CONTENT_HASH for dedup prep
- *   Step 2 (COBOL)    — Match-merge: imports vs. tech reference table
- *   Step 3 (REXX)     — Deduplicate, retag categories, finalize report
- *   Step 4 (COPY+CC)  — Record count check + conditional copy to output
+ *   Upload            — IEBGENER inline flat file to MVS dataset
+ *   Requirement 1     — JCL SORT by TECH_NAME for COBOL match-merge
+ *   Requirement 2     — COBOL match-merge (AUDCOBOL vs TECHREF)
+ *   Requirement 3     — REXX deduplication & primary-key sort (AUDRXXX)
+ *   Requirement 4     — IBM SORT Descending + Count Integrity Check (AUDCOUNT)
+ *   Report Retrieval  — IEBGENER copy to SYSOUT
  *
- * Port Reference (VERIFIED from HERCULES_PORTS_GUIDE.md):
- *   Card Reader (submission) : TCP port 3505
- *   HTTP Console (monitoring): HTTP port 8038
- *
- * JCL Formatting Rules (MVS/JES2):
- *   - Columns 1-72  : JCL statements
- *   - Column 1-2    : // (continuation prefix)
- *   - Column 3-10   : name field (8 chars, UPPERCASE)
- *   - Column 11     : space
- *   - Column 12+    : operation + operands
- *   - Must end with /* on a separate line
- *   - No tabs — spaces only
+ * Verified TK5 Compatibility:
+ *   - Device allocation: UNIT=3390,VOL=SER=WORK01
+ *   - DFSORT library: SYS1.SORTLIB + SORTWK01..03
+ *   - Security: USER=HERC01,PASSWORD=CUL8TR
+ *   - Line length strictly <= 71 characters (MVS column limit)
  */
 
 /** Generate a random 4-char suffix for unique job names */
@@ -30,6 +25,23 @@ function jobSuffix(): string {
 /** Pad a name to exactly 8 uppercase characters */
 function jclName(s: string): string {
     return s.toUpperCase().slice(0, 8).padEnd(8, " ");
+}
+
+/**
+ * Standard JOB card formatted cleanly across 2 lines to strictly
+ * remain within MVS column limits (<= 71 characters).
+ */
+function makeJobCard(
+    name: string,
+    desc: string,
+    user: string = "HERC01",
+    password: string = "CUL8TR",
+): string[] {
+    const pwdPart = password ? `,PASSWORD=${password}` : "";
+    return [
+        `//${name} JOB (ACCT),'${desc}',`,
+        `//         CLASS=A,MSGCLASS=X,USER=${user}${pwdPart}`,
+    ];
 }
 
 export interface JclJobNames {
@@ -58,58 +70,69 @@ export function generateJobNames(prefix: string = "AUD"): JclJobNames {
 
 /**
  * JCL to upload the inline flat file data into an MVS sequential dataset
- * via IEBGENER. The flat file data is embedded as DD * inline.
+ * via IEBGENER on 3390 public DASD (WORK01).
  */
 export function buildUploadJcl(
     jobName: string,
     datasetName: string,
     flatFileContent: string,
     lrecl: number = 80,
+    user: string = "HERC01",
+    password: string = "CUL8TR",
 ): string {
     const name = jclName(jobName);
     const blksize = lrecl * 10;
 
     return [
-        `//${name} JOB (ACCT),'AUDIT-UPLOAD',CLASS=A,MSGCLASS=X`,
+        ...makeJobCard(name, "AUDIT-UPLOAD", user, password),
         `//STEP01   EXEC PGM=IEBGENER`,
         `//SYSPRINT DD SYSOUT=*`,
+        `//SYSIN    DD DUMMY`,
         `//SYSUT1   DD *`,
         flatFileContent,
         `/*`,
-        `//${" ".repeat(0)}SYSUT2   DD DSN=${datasetName},`,
+        `//SYSUT2   DD DSN=${datasetName},`,
         `//            DISP=(NEW,CATLG,DELETE),`,
-        `//            SPACE=(CYL,(1,5),RLSE),`,
+        `//            UNIT=3390,VOL=SER=WORK01,`,
+        `//            SPACE=(TRK,(5,5),RLSE),`,
         `//            DCB=(RECFM=FB,LRECL=${lrecl},BLKSIZE=${blksize})`,
-        `//SYSIN    DD DUMMY`,
         `/*`,
         "",
     ].join("\n");
 }
 
-// ─── Step 2: Sort flat file by CONTENT_HASH ───────────────────────────────────
+// ─── Step 2: Sort flat file by TECH_NAME ─────────────────────────────────────
 
 /**
- * JCL SORT job: sorts the uploaded flat file by the CONTENT_HASH field
- * (columns 51-58) to prepare for COBOL match-merge deduplication.
+ * JCL SORT job: sorts the uploaded flat file by TECH_NAME (cols 41-50)
+ * to prepare for COBOL match-merge against TECHREF.
  */
 export function buildSortJcl(
     jobName: string,
     inputDsn: string,
     outputDsn: string,
+    user: string = "HERC01",
+    password: string = "CUL8TR",
 ): string {
     const name = jclName(jobName);
 
     return [
-        `//${name} JOB (ACCT),'AUDIT-SORT',CLASS=A,MSGCLASS=X`,
+        ...makeJobCard(name, "AUDIT-SORT", user, password),
         `//STEP01   EXEC PGM=SORT`,
+        `//SORTLIB  DD DSN=SYS1.SORTLIB,DISP=SHR`,
         `//SYSOUT   DD SYSOUT=*`,
         `//SORTIN   DD DSN=${inputDsn},DISP=SHR`,
         `//SORTOUT  DD DSN=${outputDsn},`,
         `//            DISP=(NEW,CATLG,DELETE),`,
-        `//            SPACE=(CYL,(1,5),RLSE),`,
+        `//            UNIT=3390,VOL=SER=WORK01,`,
+        `//            SPACE=(TRK,(5,5),RLSE),`,
         `//            DCB=(RECFM=FB,LRECL=80,BLKSIZE=800)`,
+        `//SORTWK01 DD UNIT=3390,SPACE=(CYL,(1,1))`,
+        `//SORTWK02 DD UNIT=3390,SPACE=(CYL,(1,1))`,
+        `//SORTWK03 DD UNIT=3390,SPACE=(CYL,(1,1))`,
         `//SYSIN    DD *`,
         `  SORT FIELDS=(41,10,CH,A,1,40,CH,A)`,
+        `  RECORD LENGTH=80,TYPE=F`,
         `/*`,
         "",
     ].join("\n");
@@ -119,20 +142,14 @@ export function buildSortJcl(
 
 /**
  * JCL to invoke the COBOL match-merge program (AUDCOBOL).
- *
- * The COBOL program:
- *   - Reads sorted flat file (AUDREC)
- *   - Reads the technology reference table (TECHREF) — embedded inline
- *   - Tags each record: GENUINE if hash appears >1 time, PSEUDO if only once
- *   - Writes matched output to AUDRPT
- *
- * The TECHREF inline data lists known tech names and their canonical categories.
- * Each TECHREF record: TECHNAME(10) CATEGORY(10) CANONICAL_FLAG(1) = 21 bytes
  */
 export function buildCobolJcl(
     jobName: string,
     sortedInputDsn: string,
     outputDsn: string,
+    prefix: string = "HERC01",
+    user: string = "HERC01",
+    password: string = "CUL8TR",
 ): string {
     const name = jclName(jobName);
 
@@ -170,9 +187,9 @@ export function buildCobolJcl(
     ].map((r) => r.padEnd(80)).join("\n");
 
     return [
-        `//${name} JOB (ACCT),'AUDIT-COBOL',CLASS=A,MSGCLASS=X`,
+        ...makeJobCard(name, "AUDIT-COBOL", user, password),
         `//STEP01   EXEC PGM=AUDCOBOL`,
-        `//STEPLIB  DD DSN=STUDENT.LOADLIB,DISP=SHR`,
+        `//STEPLIB  DD DSN=${prefix}.LOADLIB,DISP=SHR`,
         `//SYSPRINT DD SYSOUT=*`,
         `//AUDREC   DD DSN=${sortedInputDsn},DISP=SHR`,
         `//TECHREF  DD *`,
@@ -180,7 +197,8 @@ export function buildCobolJcl(
         `/*`,
         `//AUDRPT   DD DSN=${outputDsn},`,
         `//            DISP=(NEW,CATLG,DELETE),`,
-        `//            SPACE=(CYL,(1,5),RLSE),`,
+        `//            UNIT=3390,VOL=SER=WORK01,`,
+        `//            SPACE=(TRK,(5,5),RLSE),`,
         `//            DCB=(RECFM=FB,LRECL=80,BLKSIZE=800)`,
         `//SYSOUT   DD SYSOUT=*`,
         `/*`,
@@ -191,41 +209,39 @@ export function buildCobolJcl(
 // ─── Step 4: REXX deduplication + report finalization ─────────────────────────
 
 /**
- * JCL to invoke the REXX exec AUDRXXX from STUDENT.EXEC.
- *
- * The REXX script:
- *   - Reads the COBOL output (AUDRPT)
- *   - Deduplicates records by CONTENT_HASH
- *   - Sorts by FILE_PATH (cols 1-40)
- *   - Recounts statistics per technology category
- *   - Writes the final report to AUDOUT
+ * JCL to invoke the REXX exec AUDRXXX from EXEC PDS.
  */
 export function buildRexxJcl(
     jobName: string,
     cobolOutputDsn: string,
     finalOutputDsn: string,
+    prefix: string = "HERC01",
+    user: string = "HERC01",
+    password: string = "CUL8TR",
 ): string {
     const name = jclName(jobName);
 
     return [
-        `//${name} JOB (ACCT),'AUDIT-REXX',CLASS=A,MSGCLASS=X`,
+        ...makeJobCard(name, "AUDIT-REXX", user, password),
         `//STEP01   EXEC PGM=IKJEFT01`,
         `//SYSPRINT DD SYSOUT=*`,
         `//SYSTSPRT DD SYSOUT=*`,
+        `//SYSEXEC  DD DSN=${prefix}.EXEC,DISP=SHR`,
         `//SYSTSIN  DD *`,
-        `  EXEC 'STUDENT.EXEC(AUDRXXX)'`,
+        `  EXEC '${prefix}.EXEC(AUDRXXX)'`,
         `/*`,
         `//AUDRPT   DD DSN=${cobolOutputDsn},DISP=SHR`,
         `//AUDOUT   DD DSN=${finalOutputDsn},`,
         `//            DISP=(NEW,CATLG,DELETE),`,
-        `//            SPACE=(CYL,(1,5),RLSE),`,
+        `//            UNIT=3390,VOL=SER=WORK01,`,
+        `//            SPACE=(TRK,(5,5),RLSE),`,
         `//            DCB=(RECFM=FB,LRECL=80,BLKSIZE=800)`,
         `/*`,
         "",
     ].join("\n");
 }
 
-// ─── Step 4: Requirement 4 — IBM SORT Descending + Count Integrity Check ────
+// ─── Requirement 4: IBM SORT Descending + Count Integrity Check ───────────────
 
 /**
  * Requirement 4 JCL:
@@ -233,13 +249,15 @@ export function buildRexxJcl(
  * - Compare total record count before and after sort using AUDCOUNT REXX exec
  * - Keep output file ONLY if counts match (success path: COND=(0,NE,STEPCOMP))
  * - Print error message if counts do not match (failure path: COND=(0,EQ,STEPCOMP))
- * - Can simulate failure case by omitting records in SORT to test conditional error logic
  */
 export function buildStep4IntegrityJcl(
     jobName: string,
     inputDsn: string,
     outputDsn: string,
     simulateFailure: boolean = false,
+    prefix: string = "HERC01",
+    user: string = "HERC01",
+    password: string = "CUL8TR",
 ): string {
     const name = jclName(jobName);
     const sortSysin = simulateFailure
@@ -250,27 +268,32 @@ export function buildStep4IntegrityJcl(
         : "  SORT FIELDS=(1,80,CH,D)";
 
     return [
-        `//${name} JOB (ACCT),'REQ4-INTEGRITY',CLASS=A,MSGCLASS=X`,
+        ...makeJobCard(name, "REQ4-INTEGRITY", user, password),
         `//* STEP 1: SORT IN DESCENDING ORDER VIA IBM SORT`,
         `//STEP01   EXEC PGM=SORT`,
+        `//SORTLIB  DD DSN=SYS1.SORTLIB,DISP=SHR`,
         `//SYSOUT   DD SYSOUT=*`,
         `//SORTIN   DD DSN=${inputDsn},DISP=SHR`,
         `//SORTOUT  DD DSN=&&SORTDESC,`,
         `//            DISP=(NEW,PASS),`,
-        `//            SPACE=(CYL,(1,5)),`,
+        `//            UNIT=3390,SPACE=(TRK,(5,5)),`,
         `//            DCB=(RECFM=FB,LRECL=80,BLKSIZE=800)`,
+        `//SORTWK01 DD UNIT=3390,SPACE=(CYL,(1,1))`,
+        `//SORTWK02 DD UNIT=3390,SPACE=(CYL,(1,1))`,
+        `//SORTWK03 DD UNIT=3390,SPACE=(CYL,(1,1))`,
         `//SYSIN    DD *`,
         sortSysin,
+        `  RECORD LENGTH=80,TYPE=F`,
         `/*`,
         `//* STEP 2: COMPARE RECORD COUNTS (RC=0 IF MATCH, RC=12 IF MISMATCH)`,
         `//STEPCOMP EXEC PGM=IKJEFT01`,
         `//SYSPRINT DD SYSOUT=*`,
         `//SYSTSPRT DD SYSOUT=*`,
-        `//SYSEXEC  DD DSN=STUDENT.EXEC,DISP=SHR`,
+        `//SYSEXEC  DD DSN=${prefix}.EXEC,DISP=SHR`,
         `//DS1      DD DSN=${inputDsn},DISP=SHR`,
         `//DS2      DD DSN=&&SORTDESC,DISP=SHR`,
         `//SYSTSIN  DD *`,
-        `  EXEC 'STUDENT.EXEC(AUDCOUNT)'`,
+        `  EXEC '${prefix}.EXEC(AUDCOUNT)'`,
         `/*`,
         `//* STEP 3: SUCCESS PATH — KEEP OUTPUT ONLY IF COUNTS MATCH (RC=0)`,
         `//STEPKEEP EXEC PGM=IEBGENER,COND=(0,NE,STEPCOMP)`,
@@ -278,7 +301,8 @@ export function buildStep4IntegrityJcl(
         `//SYSUT1   DD DSN=&&SORTDESC,DISP=(OLD,DELETE)`,
         `//SYSUT2   DD DSN=${outputDsn},`,
         `//            DISP=(NEW,CATLG,DELETE),`,
-        `//            SPACE=(CYL,(1,5),RLSE),`,
+        `//            UNIT=3390,VOL=SER=WORK01,`,
+        `//            SPACE=(TRK,(5,5),RLSE),`,
         `//            DCB=(RECFM=FB,LRECL=80,BLKSIZE=800)`,
         `//SYSIN    DD DUMMY`,
         `/*`,
@@ -298,16 +322,18 @@ export function buildStep4IntegrityJcl(
 
 /**
  * JCL to copy the final report dataset to SYSOUT so it can be
- * captured from the system log via the HTTP console.
+ * captured from the printer/spool.
  */
 export function buildReportJcl(
     jobName: string,
     reportDsn: string,
+    user: string = "HERC01",
+    password: string = "CUL8TR",
 ): string {
     const name = jclName(jobName);
 
     return [
-        `//${name} JOB (ACCT),'AUDIT-REPORT',CLASS=A,MSGCLASS=X`,
+        ...makeJobCard(name, "AUDIT-REPORT", user, password),
         `//STEP01   EXEC PGM=IEBGENER`,
         `//SYSPRINT DD SYSOUT=*`,
         `//SYSUT1   DD DSN=${reportDsn},DISP=SHR`,
@@ -331,4 +357,3 @@ export function buildDatasetNames(prefix: string, suffix: string) {
         reportDsn  : `${prefix}.AUDIT.REPORT.D${ts}`,
     };
 }
-

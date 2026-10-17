@@ -315,7 +315,7 @@ async function runHerculesPipeline(
     info(`Job: ${jobNames.uploadJob}`);
 
     s.start("Submitting upload JCL…");
-    const uploadJcl = buildUploadJcl(jobNames.uploadJob, datasets.inputDsn, flatFileContent);
+    const uploadJcl = buildUploadJcl(jobNames.uploadJob, datasets.inputDsn, flatFileContent, 80, config.user, config.password);
 
     try {
         await submitJcl(uploadJcl, config);
@@ -343,7 +343,7 @@ async function runHerculesPipeline(
     step(7, "Requirement 1 — JCL Sort (by TECH_NAME for COBOL match-merge)");
     info(`Job: ${jobNames.sortJob}`);
 
-    const sortJcl = buildSortJcl(jobNames.sortJob, datasets.inputDsn, datasets.sortedDsn);
+    const sortJcl = buildSortJcl(jobNames.sortJob, datasets.inputDsn, datasets.sortedDsn, config.user, config.password);
     await submitJcl(sortJcl, config);
 
     const sortResult = await pollJobUntilComplete(
@@ -364,7 +364,7 @@ async function runHerculesPipeline(
     step(8, "Requirement 2 — COBOL Match-Merge (AUDCOBOL vs TECHREF)");
     info(`Job: ${jobNames.cobolJob}`);
 
-    const cobolJcl = buildCobolJcl(jobNames.cobolJob, datasets.sortedDsn, datasets.cobolOutDsn);
+    const cobolJcl = buildCobolJcl(jobNames.cobolJob, datasets.sortedDsn, datasets.cobolOutDsn, config.datasetPrefix, config.user, config.password);
     await submitJcl(cobolJcl, config);
 
     const cobolResult = await pollJobUntilComplete(
@@ -386,7 +386,7 @@ async function runHerculesPipeline(
     step(9, "Requirement 3 — REXX Deduplication & Primary-Key Sort (AUDRXXX)");
     info(`Job: ${jobNames.rexxJob}`);
 
-    const rexxJcl = buildRexxJcl(jobNames.rexxJob, datasets.cobolOutDsn, datasets.rexxOutDsn);
+    const rexxJcl = buildRexxJcl(jobNames.rexxJob, datasets.cobolOutDsn, datasets.rexxOutDsn, config.datasetPrefix, config.user, config.password);
     await submitJcl(rexxJcl, config);
 
     const rexxResult = await pollJobUntilComplete(
@@ -418,6 +418,9 @@ async function runHerculesPipeline(
         datasets.rexxOutDsn,
         datasets.finalDsn,
         testFailureCase,
+        config.datasetPrefix,
+        config.user,
+        config.password,
     );
     await submitJcl(integrityJcl, config);
 
@@ -449,7 +452,7 @@ async function runHerculesPipeline(
     info(`Job: ${jobNames.reportJob}`);
 
     const reportTargetDsn = (testFailureCase || !integrityResult.success) ? datasets.rexxOutDsn : datasets.finalDsn;
-    const reportJcl = buildReportJcl(jobNames.reportJob, reportTargetDsn);
+    const reportJcl = buildReportJcl(jobNames.reportJob, reportTargetDsn, config.user, config.password);
     await submitJcl(reportJcl, config);
 
     const reportResult = await pollJobUntilComplete(

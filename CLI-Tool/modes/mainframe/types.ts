@@ -66,6 +66,9 @@ export interface MainframeConfig {
     cardReaderPort: number;
     httpPort: number;
     datasetPrefix: string;
+    user: string;
+    password?: string;
+    printerPath?: string;
     pollIntervalMs: number;
     pollMaxAttempts: number;
     mode: "hercules" | "simulated" | "auto";
@@ -75,7 +78,10 @@ export const defaultMainframeConfig = (): MainframeConfig => ({
     host: process.env.TK5_HOST || "127.0.0.1",
     cardReaderPort: parseInt(process.env.TK5_CARD_READER_PORT || "3505"),
     httpPort: parseInt(process.env.TK5_HTTP_PORT || "8038"),
-    datasetPrefix: process.env.TK5_DATASET_PREFIX || "STUDENT",
+    datasetPrefix: process.env.TK5_DATASET_PREFIX || "HERC01",
+    user: process.env.TK5_USER || "HERC01",
+    password: process.env.TK5_PASSWORD || "CUL8TR",
+    printerPath: process.env.TK5_PRINTER_PATH,
     pollIntervalMs: parseInt(process.env.JOB_POLL_INTERVAL_MS || "2000"),
     pollMaxAttempts: parseInt(process.env.JOB_POLL_MAX_ATTEMPTS || "30"),
     mode: (process.env.MAINFRAME_MODE as MainframeConfig["mode"]) || "auto",

@@ -21,6 +21,7 @@
  */
 
 import net from "node:net";
+import fs from "node:fs";
 import type { MainframeConfig, JobResult } from "./types.ts";
 
 // ─── TCP JCL Submission ───────────────────────────────────────────────────────
@@ -80,42 +81,100 @@ async function fetchSyslog(config: MainframeConfig): Promise<string> {
     return resp.text();
 }
 
+export interface MvsJobStatus {
+    started: boolean;
+    completed: boolean;
+    returnCode?: number;
+    hasJclError: boolean;
+    isFlushed: boolean;
+    hasAbend: boolean;
+    abendCode?: string;
+    isCancelled: boolean;
+    errorDetail?: string;
+}
+
 /**
  * Query the status of a job by parsing the system log.
- * Returns { started, completed, returnCode }.
+ * Detects JCL errors (IEF452I/IEF453I), ABENDs, FLUSH, CANCEL, and return codes.
  */
 async function queryJobStatus(
     jobName: string,
     config: MainframeConfig,
-): Promise<{ started: boolean; completed: boolean; returnCode?: number }> {
+): Promise<MvsJobStatus> {
     const log = await fetchSyslog(config);
     const upper = log.toUpperCase();
     const name = jobName.toUpperCase();
 
-    const completed = upper.includes(`$HASP395 ${name}`);
-    const started = upper.includes(`$HASP373 ${name}`);
+    const started = upper.includes(`$HASP373 ${name}`) || upper.includes(`IEF403I ${name}`);
+    const completed = upper.includes(`$HASP395 ${name}`) || upper.includes(`IEF404I ${name}`) || upper.includes(`IEF452I ${name}`);
 
+    let hasJclError = false;
+    let isFlushed = false;
+    let hasAbend = false;
+    let abendCode: string | undefined;
+    let isCancelled = false;
+    let errorDetail: string | undefined;
     let returnCode: number | undefined;
-    if (completed) {
-        // Try pattern: RC=NNNN on the same line as the job name
-        const rcPattern = new RegExp(`${name}.*RC=(\\d{4})`);
-        const globalRcPattern = /RC=(\d{4})/g;
-        let match = log.match(rcPattern);
-        if (!match) {
-            // Fallback: grab last RC= in log
-            const all = [...log.matchAll(globalRcPattern)];
-            if (all.length > 0) {
-                match = all[all.length - 1] as RegExpMatchArray;
-            }
-        }
-        if (match) {
-            returnCode = parseInt(match[1]!, 10);
-        } else {
-            returnCode = 0; // assume success if RC not found
+
+    // Check for JCL / Converter / Allocation errors
+    if (
+        upper.includes(`IEF452I ${name}`) ||
+        upper.includes(`IEF453I ${name}`) ||
+        (upper.includes(name) && upper.includes("JCL ERROR")) ||
+        (upper.includes(name) && upper.includes("RAKF0005"))
+    ) {
+        hasJclError = true;
+        errorDetail = "MVS JCL Error: Job failed during JCL parsing or dataset/device allocation (IEF452I/IEF453I)";
+    }
+
+    // Check for Cancellation
+    if (upper.includes(`IEF251I ${name}`) || (upper.includes(name) && upper.includes("JOB CANCELLED"))) {
+        isCancelled = true;
+        errorDetail = "MVS Job Cancelled by operator or system";
+    }
+
+    // Check for Step Flush
+    if (upper.includes(name) && upper.includes("*FLUSH*")) {
+        isFlushed = true;
+        if (!errorDetail) {
+            errorDetail = "MVS Step Flushed: Prior condition code or allocation failure caused step flush";
         }
     }
 
-    return { started, completed, returnCode };
+    // Check for ABEND
+    const abendMatch = upper.match(new RegExp(`${name}[\\s\\S]*?AB(?:END)?\\s*(?:S\\d+\\s*)?([US][0-9A-F]{3,4})`));
+    if (abendMatch || (upper.includes(name) && upper.includes("ABEND"))) {
+        hasAbend = true;
+        abendCode = abendMatch ? abendMatch[1] : undefined;
+        errorDetail = `MVS ABEND${abendCode ? ` (${abendCode})` : ""}: Program terminated abnormally`;
+    }
+
+    // Check for Return Code: e.g. "NAME STEP01 PROG RC= 0000" or "NAME ... RC=0000"
+    const rcRegex = new RegExp(`${name}[\\s\\S]*?RC=\\s*(\\d{1,4})`, "g");
+    const matches = [...upper.matchAll(rcRegex)];
+    if (matches.length > 0) {
+        const lastMatch = matches[matches.length - 1];
+        if (lastMatch && lastMatch[1]) {
+            returnCode = parseInt(lastMatch[1], 10);
+        }
+    }
+
+    // If job ended normally (IEF404I) and had no RC explicitly found (e.g. IEFBR14) and no errors:
+    if (returnCode === undefined && upper.includes(`IEF404I ${name}`) && !hasJclError && !hasAbend && !isFlushed) {
+        returnCode = 0;
+    }
+
+    return {
+        started,
+        completed,
+        returnCode,
+        hasJclError,
+        isFlushed,
+        hasAbend,
+        abendCode,
+        isCancelled,
+        errorDetail,
+    };
 }
 
 /**
@@ -129,7 +188,7 @@ export async function pollJobUntilComplete(
     const { pollMaxAttempts, pollIntervalMs } = config;
 
     for (let attempt = 1; attempt <= pollMaxAttempts; attempt++) {
-        let status: { started: boolean; completed: boolean; returnCode?: number };
+        let status: MvsJobStatus;
 
         try {
             status = await queryJobStatus(jobName, config);
@@ -152,7 +211,15 @@ export async function pollJobUntilComplete(
         }
 
         const statusStr = status.completed
-            ? `COMPLETE (RC=${status.returnCode ?? "?"})`
+            ? (status.hasJclError
+                ? "FAILED (JCL ERROR)"
+                : status.hasAbend
+                ? `FAILED (ABEND ${status.abendCode || ""})`
+                : status.isCancelled
+                ? "CANCELLED"
+                : status.isFlushed
+                ? "FLUSHED"
+                : `COMPLETE (RC=${status.returnCode ?? "?"})`)
             : status.started
             ? "RUNNING"
             : "WAITING";
@@ -160,10 +227,17 @@ export async function pollJobUntilComplete(
         onProgress?.(attempt, pollMaxAttempts, statusStr);
 
         if (status.completed) {
+            const isSuccess = !status.hasJclError &&
+                !status.hasAbend &&
+                !status.isCancelled &&
+                !status.isFlushed &&
+                (status.returnCode !== undefined && status.returnCode <= 4);
+
             return {
-                success: (status.returnCode ?? 0) <= 4, // RC 0-4 = success in MVS
+                success: isSuccess,
                 jobName,
                 returnCode: status.returnCode,
+                error: isSuccess ? undefined : (status.errorDetail || `Job ended with RC=${status.returnCode ?? "UNKNOWN"}`),
                 attempts: attempt,
                 totalTimeMs: attempt * pollIntervalMs,
             };
@@ -182,15 +256,34 @@ export async function pollJobUntilComplete(
 }
 
 /**
- * Retrieve SYSOUT from the system log for a specific job.
- * Extracts lines between $HASP373 (start) and $HASP395 (end).
+ * Retrieve SYSOUT from the system log or Hercules printer file for a specific job.
  */
 export async function getJobSysout(
     jobName: string,
     config: MainframeConfig,
 ): Promise<string> {
-    const log = await fetchSyslog(config);
     const name = jobName.toUpperCase();
+
+    // 1. Check local printer file if available (contains true dataset listings)
+    if (config.printerPath && fs.existsSync(config.printerPath)) {
+        try {
+            const prtContent = await fs.promises.readFile(config.printerPath, "utf-8");
+            const prtUpper = prtContent.toUpperCase();
+            if (prtUpper.includes(name)) {
+                const jobIdx = prtUpper.lastIndexOf(name);
+                const slice = prtContent.slice(Math.max(0, jobIdx - 300), jobIdx + 4000);
+                const lines = slice.split("\n").filter((l) => l.trim().length > 0);
+                if (lines.length > 5) {
+                    return lines.join("\n");
+                }
+            }
+        } catch {
+            // fallback to syslog
+        }
+    }
+
+    // 2. Syslog extraction
+    const log = await fetchSyslog(config);
     const lines = log.split("\n");
 
     const output: string[] = [];
@@ -198,7 +291,7 @@ export async function getJobSysout(
 
     for (const line of lines) {
         const upper = line.toUpperCase();
-        if (upper.includes(`$HASP373 ${name}`)) {
+        if (upper.includes(`$HASP373 ${name}`) || upper.includes(`$HASP100 ${name}`)) {
             inJob = true;
         }
         if (inJob) {
