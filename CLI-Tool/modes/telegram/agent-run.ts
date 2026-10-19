@@ -1,121 +1,134 @@
-import { tool, ToolLoopAgent, stepCountIs } from "ai";
+import { ToolLoopAgent, stepCountIs, tool } from "ai";
 import { z } from "zod";
 import { getAgentModel } from "../../ai/ai.config.ts";
-import { actionTracker } from "../agents/action_tracker.ts";
-import { ToolExecutor } from "../agents/tool-executor.ts";
-import { createAgentTools } from "../agents/agent-tools.ts";
-import { defaultAgentConfig, type AgentConfig } from "../agents/types.ts";
-import { createWebTools } from "../plan/web-tools.ts";
-import type { Plan, PlanStep } from "../plan/types.ts";
 import { replyMd } from "./text.ts";
-import { finishOrApprove } from "./approval-session.ts";
+import fs from "node:fs";
+import path from "node:path";
 
-function readOnlyConfig(): AgentConfig {
-  const c = defaultAgentConfig();
-  c.tools.allowFileCreation = false;
-  c.tools.allowFileModification = false;
-  c.tools.allowFolderCreation = false;
-  c.tools.allowShellExecution = false;
-  return c;
+/** Recursively walk a directory and return all file paths (relative to root). */
+function walkDir(root: string): string[] {
+    const results: string[] = [];
+    const visit = (dir: string) => {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+            const full = path.join(dir, entry.name);
+            if (entry.isDirectory()) visit(full);
+            else results.push(path.relative(root, full));
+        }
+    };
+    visit(root);
+    return results;
 }
 
-async function agentOptions(config: AgentConfig, maxSteps: number) {
-  return {
-    model: await getAgentModel(),
-    stopWhen: stepCountIs(maxSteps),
-    instructions: `Workspace root: ${config.codebasePath}`,
-  };
+// ─── Read-only tools for /ask ─────────────────────────────────────────────────
+
+function createReadOnlyTools(codebasePath: string) {
+    return {
+        read_file: tool({
+            description: "Read a workspace file. Path is relative to the codebase root.",
+            inputSchema: z.object({ path: z.string() }),
+            execute: async ({ path: p }) => {
+                try {
+                    return fs.readFileSync(path.resolve(codebasePath, p), "utf-8");
+                } catch (e) {
+                    return `Error: ${e instanceof Error ? e.message : String(e)}`;
+                }
+            },
+        }),
+        list_files: tool({
+            description: "List files/dirs at a path.",
+            inputSchema: z.object({
+                path: z.string(),
+                recursive: z.boolean().optional().default(false),
+            }),
+            execute: async ({ path: p, recursive }) => {
+                try {
+                    const abs = path.resolve(codebasePath, p);
+                    if (recursive) {
+                        return walkDir(abs).join("\n");
+                    }
+                    return fs.readdirSync(abs).join("\n");
+                } catch (e) {
+                    return `Error: ${e instanceof Error ? e.message : String(e)}`;
+                }
+            },
+        }),
+        search_files: tool({
+            description: "Find files matching a glob pattern; optional content filter.",
+            inputSchema: z.object({
+                root: z.string(),
+                pattern: z.string(),
+                content_contains: z.string().optional(),
+            }),
+            execute: async ({ root, pattern, content_contains }) => {
+                try {
+                    const abs = path.resolve(codebasePath, root);
+                    const allFiles = walkDir(abs);
+                    // Simple glob-like pattern match: convert * and ** to regex
+                    const regexStr = pattern
+                        .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+                        .replace(/\*\*/g, "__GLOBSTAR__")
+                        .replace(/\*/g, "[^/\\\\]*")
+                        .replace(/__GLOBSTAR__/g, ".*");
+                    const re = new RegExp(`^${regexStr}$`, "i");
+                    const files = allFiles.filter((f: string) => re.test(f.replace(/\\/g, "/")));
+                    if (!content_contains) return files.join("\n");
+                    return files
+                        .filter((f: string) => {
+                            try {
+                                return fs.readFileSync(path.join(abs, f), "utf-8").includes(content_contains);
+                            } catch {
+                                return false;
+                            }
+                        })
+                        .join("\n");
+                } catch (e) {
+                    return `Error: ${e instanceof Error ? e.message : String(e)}`;
+                }
+            },
+        }),
+        analyze_codebase: tool({
+            description: "Summarize the codebase structure (file counts, extensions, size).",
+            inputSchema: z.object({ path: z.string().default(".") }),
+            execute: async ({ path: p }) => {
+                try {
+                    const abs = path.resolve(codebasePath, p);
+                    const all = walkDir(abs);
+                    const extMap: Record<string, number> = {};
+                    let totalSize = 0;
+                    for (const f of all) {
+                        const ext = path.extname(f) || "(no ext)";
+                        extMap[ext] = (extMap[ext] || 0) + 1;
+                        try { totalSize += fs.statSync(path.join(abs, f)).size; } catch {}
+                    }
+                    const breakdown = Object.entries(extMap)
+                        .sort(([, a], [, b]) => b - a)
+                        .map(([ext, count]) => `  ${ext.padEnd(12)} ${count} files`)
+                        .join("\n");
+                    return [`Root: ${abs}`, `Total files: ${all.length}`, `Total size: ${(totalSize / 1024).toFixed(1)} KB`, "", breakdown].join("\n");
+                } catch (e) {
+                    return `Error: ${e instanceof Error ? e.message : String(e)}`;
+                }
+            },
+        }),
+    };
 }
 
-function createReadOnlyTools(executor: ToolExecutor) {
-  return {
-    read_file: tool({
-      description: "Read a workspace file (relative path).",
-      inputSchema: z.object({ path: z.string() }),
-      execute: async ({ path: p }) => executor.readFile(p),
-    }),
-    list_files: tool({
-      description: "List files/dirs at a path.",
-      inputSchema: z.object({
-        path: z.string(),
-        recursive: z.boolean().optional().default(false),
-      }),
-      execute: async ({ path: p, recursive }) =>
-        executor.listFiles(p, recursive),
-    }),
-    search_files: tool({
-      description:
-        "Find files matching a glob pattern; optional content filter.",
-      inputSchema: z.object({
-        root: z.string(),
-        pattern: z.string(),
-        content_contains: z.string().optional(),
-      }),
-      execute: async ({ root, pattern, content_contains }) =>
-        executor.searchFiles(root, pattern, content_contains),
-    }),
-    analyze_codebase: tool({
-      description: "Summarize the codebase structure.",
-      inputSchema: z.object({ path: z.string().default(".") }),
-      execute: async ({ path: p }) => executor.analyzeCodebase(p),
-    }),
-  };
-}
+// ─── /ask handler ─────────────────────────────────────────────────────────────
 
-function extraWebTools(tracker: actionTracker) {
-  return process.env.FIRECRAWL_API_KEY ? createWebTools(tracker) : {};
-}
-
-
-export async function runAsk(ctx:{reply:(t:string , o?:object)=>Promise<unknown>} , question:string){
-     const config = readOnlyConfig();
-  const tracker = new actionTracker();
-  const executor = new ToolExecutor(tracker, config);
-  const tools = { ...createReadOnlyTools(executor), ...extraWebTools(tracker) };
-  const agent = new ToolLoopAgent({
-    ...await(agentOptions(config, 20)),
-    tools,
-  });
-
-  const {text} = await agent.generate({prompt:question});
-  await replyMd(ctx , text || ("no answer"))
-}
-
-export async function runAgent(ctx: { reply: (t: string, o?: object) => Promise<unknown> }, chatId: number, goal: string) {
-  const config = defaultAgentConfig();
-  const tracker = new actionTracker();
-  const executor = new ToolExecutor(tracker, config);
-  const tools = await createAgentTools(executor);
-  const agent = new ToolLoopAgent({
-    ...await(agentOptions(config, 40)),
-    tools,
-  });
-  const { text } = await agent.generate({ prompt: goal });
-  if (text?.trim()) await replyMd(ctx, text.trim());
- await finishOrApprove(ctx, chatId, tracker, executor, '✅ Done. No file changes were needed.');
-}
-
-export async function runPlanSteps(
-  ctx: { reply: (t: string, o?: object) => Promise<unknown> },
-  chatId: number,
-  plan: Plan,
-  steps: PlanStep[],
+export async function runAsk(
+    ctx: { reply: (t: string, o?: object) => Promise<unknown> },
+    question: string,
 ) {
-  const config = defaultAgentConfig();
-  const tracker = new actionTracker();
-  const executor = new ToolExecutor(tracker, config);
-  const tools = { ...(await createAgentTools(executor)), ...extraWebTools(tracker) };
+    const codebasePath = process.cwd();
+    const tools = createReadOnlyTools(codebasePath);
 
-  for (const step of steps) {
-    await ctx.reply(`🔧 Executing: *${step.title}*`, { parse_mode: 'Markdown' });
-    const prompt = [`Goal: ${plan.goal}`, `Step: ${step.title}`, step.description].join('\n');
     const agent = new ToolLoopAgent({
-      ...await(agentOptions(config, 30)),
-      tools,
+        model: await getAgentModel(),
+        stopWhen: stepCountIs(20),
+        instructions: `Workspace root: ${codebasePath}. Read-only — do not suggest edits.`,
+        tools,
     });
-    const { text } = await agent.generate({ prompt });
-    if (text?.trim()) await replyMd(ctx, text.trim());
-  }
 
- await finishOrApprove(ctx, chatId, tracker, executor, '✅ All steps done. No file changes needed.');
+    const { text } = await agent.generate({ prompt: question });
+    await replyMd(ctx, text || "No answer generated.");
 }

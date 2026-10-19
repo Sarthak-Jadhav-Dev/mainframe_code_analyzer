@@ -1,20 +1,17 @@
 /**
  * Mainframe Codebase Auditor — Repository Scanner
  * -------------------------------------------------
- * Scans a local codebase, detects technology imports,
+ * Scans a local codebase, detects technology imports/usages,
  * computes content hashes, and prepares records for the
  * fixed-width flat file that will be sent to Hercules.
  *
- * Technologies detected:
- *   - Frontend: React, Vue, Angular, Svelte, Next.js, Nuxt, SolidJS
- *   - Backend: Express, Fastify, NestJS, Koa, Hapi, Elysia
- *   - HTTP: Axios, Got, Node-Fetch, Ky, Superagent
- *   - Database: Prisma, Mongoose, TypeORM, Sequelize, Drizzle, Knex
- *   - Testing: Jest, Vitest, Mocha, Chai, Playwright, Cypress
- *   - Build: Vite, Webpack, Rollup, Parcel, Turbopack
- *   - State: Redux, Zustand, Jotai, Recoil, Pinia, MobX
- *   - Auth: Passport, NextAuth, Jose, Lucia, BetterAuth
- *   - Infra: Docker, K8s, AWS SDK, GCP, Azure
+ * Languages supported:
+ *   Mainframe : COBOL, JCL, REXX, PL/I, Assembler (HLASM)
+ *   Systems   : C, C++
+ *   JVM       : Java, Kotlin, Scala, Groovy
+ *   Scripting : Python, Ruby, Perl, Shell/Bash
+ *   Web/JS    : TypeScript, JavaScript, Vue, Svelte, Astro
+ *   Data      : SQL, XML, YAML, TOML, JSON (config-only)
  */
 
 import fs from "node:fs";
@@ -22,85 +19,193 @@ import path from "node:path";
 import crypto from "node:crypto";
 import type { TechImport, ScannedFile, ScanResult, FlatFileRecord, UsageType } from "./types.ts";
 
-// ─── Technology Detection Registry ───────────────────────────────────────────
+// ─── Language Families ────────────────────────────────────────────────────────
+
+type LanguageFamily =
+    | "mainframe" | "c-family" | "jvm" | "python" | "scripting" | "web-js" | "data" | "config";
+
+interface LanguageSpec {
+    family: LanguageFamily;
+    /** Human-readable language name used in records */
+    langName: string;
+    /** How to detect "imports" / dependencies in this language */
+    importStyle: "jcl" | "cobol" | "rexx" | "c-include" | "java" | "python" | "js-esm" | "sql" | "none";
+}
+
+const EXTENSION_MAP: Record<string, LanguageSpec> = {
+    // ── Mainframe ────────────────────────────────────────────────────────
+    ".jcl":   { family: "mainframe", langName: "JCL",       importStyle: "jcl"     },
+    ".cbl":   { family: "mainframe", langName: "COBOL",     importStyle: "cobol"   },
+    ".cob":   { family: "mainframe", langName: "COBOL",     importStyle: "cobol"   },
+    ".cobol": { family: "mainframe", langName: "COBOL",     importStyle: "cobol"   },
+    ".cpy":   { family: "mainframe", langName: "COBOL",     importStyle: "cobol"   },
+    ".rexx":  { family: "mainframe", langName: "REXX",      importStyle: "rexx"    },
+    ".rex":   { family: "mainframe", langName: "REXX",      importStyle: "rexx"    },
+    ".exec":  { family: "mainframe", langName: "REXX",      importStyle: "rexx"    },
+    ".rx":    { family: "mainframe", langName: "REXX",      importStyle: "rexx"    },
+    ".pli":   { family: "mainframe", langName: "PLI",       importStyle: "none"    },
+    ".pl1":   { family: "mainframe", langName: "PLI",       importStyle: "none"    },
+    ".asm":   { family: "mainframe", langName: "ASSEMBLER", importStyle: "none"    },
+    ".hlasm": { family: "mainframe", langName: "ASSEMBLER", importStyle: "none"    },
+    ".mac":   { family: "mainframe", langName: "ASSEMBLER", importStyle: "none"    },
+    // ── C / C++ ──────────────────────────────────────────────────────────
+    ".c":     { family: "c-family",  langName: "C",         importStyle: "c-include" },
+    ".h":     { family: "c-family",  langName: "C",         importStyle: "c-include" },
+    ".cpp":   { family: "c-family",  langName: "CPP",       importStyle: "c-include" },
+    ".cxx":   { family: "c-family",  langName: "CPP",       importStyle: "c-include" },
+    ".cc":    { family: "c-family",  langName: "CPP",       importStyle: "c-include" },
+    ".hpp":   { family: "c-family",  langName: "CPP",       importStyle: "c-include" },
+    ".hxx":   { family: "c-family",  langName: "CPP",       importStyle: "c-include" },
+    // ── JVM ──────────────────────────────────────────────────────────────
+    ".java":  { family: "jvm",       langName: "JAVA",      importStyle: "java"    },
+    ".kt":    { family: "jvm",       langName: "KOTLIN",    importStyle: "java"    },
+    ".kts":   { family: "jvm",       langName: "KOTLIN",    importStyle: "java"    },
+    ".scala": { family: "jvm",       langName: "SCALA",     importStyle: "java"    },
+    ".groovy":{ family: "jvm",       langName: "GROOVY",    importStyle: "java"    },
+    // ── Python ───────────────────────────────────────────────────────────
+    ".py":    { family: "python",    langName: "PYTHON",    importStyle: "python"  },
+    ".pyw":   { family: "python",    langName: "PYTHON",    importStyle: "python"  },
+    // ── Scripting ────────────────────────────────────────────────────────
+    ".sh":    { family: "scripting", langName: "SHELL",     importStyle: "none"    },
+    ".bash":  { family: "scripting", langName: "SHELL",     importStyle: "none"    },
+    ".rb":    { family: "scripting", langName: "RUBY",      importStyle: "none"    },
+    ".pl":    { family: "scripting", langName: "PERL",      importStyle: "none"    },
+    ".pm":    { family: "scripting", langName: "PERL",      importStyle: "none"    },
+    // ── Web / JS ─────────────────────────────────────────────────────────
+    ".ts":    { family: "web-js",    langName: "TYPESCRIPT",importStyle: "js-esm"  },
+    ".tsx":   { family: "web-js",    langName: "TYPESCRIPT",importStyle: "js-esm"  },
+    ".mts":   { family: "web-js",    langName: "TYPESCRIPT",importStyle: "js-esm"  },
+    ".js":    { family: "web-js",    langName: "JAVASCRIPT",importStyle: "js-esm"  },
+    ".jsx":   { family: "web-js",    langName: "JAVASCRIPT",importStyle: "js-esm"  },
+    ".mjs":   { family: "web-js",    langName: "JAVASCRIPT",importStyle: "js-esm"  },
+    ".cjs":   { family: "web-js",    langName: "JAVASCRIPT",importStyle: "js-esm"  },
+    ".vue":   { family: "web-js",    langName: "VUE",       importStyle: "js-esm"  },
+    ".svelte":{ family: "web-js",    langName: "SVELTE",    importStyle: "js-esm"  },
+    ".astro": { family: "web-js",    langName: "ASTRO",     importStyle: "js-esm"  },
+    // ── SQL / Data ───────────────────────────────────────────────────────
+    ".sql":   { family: "data",      langName: "SQL",       importStyle: "sql"     },
+    ".xml":   { family: "data",      langName: "XML",       importStyle: "none"    },
+};
+
+// ─── Technology Detection Patterns ───────────────────────────────────────────
 
 interface TechPattern {
     name: string;
     category: string;
-    /** Regex that matches import/require lines referencing this tech */
+    /** Families this pattern applies to (undefined = all) */
+    families?: LanguageFamily[];
     pattern: RegExp;
 }
 
 const TECH_PATTERNS: TechPattern[] = [
-    // Frontend frameworks
-    { name: "REACT", category: "frontend-fw", pattern: /from\s+['"]react['"]/i },
-    { name: "VUE", category: "frontend-fw", pattern: /from\s+['"]vue['"]/i },
-    { name: "ANGULAR", category: "frontend-fw", pattern: /from\s+['"]@angular\//i },
-    { name: "SVELTE", category: "frontend-fw", pattern: /from\s+['"]svelte['"]/i },
-    { name: "SOLIDJS", category: "frontend-fw", pattern: /from\s+['"]solid-js['"]/i },
-    // Meta-frameworks
-    { name: "NEXTJS", category: "meta-fw", pattern: /from\s+['"]next(?:\/|['"])/i },
-    { name: "NUXT", category: "meta-fw", pattern: /from\s+['"](?:#app|nuxt)['"]/i },
-    { name: "REMIX", category: "meta-fw", pattern: /from\s+['"]@remix-run\//i },
-    { name: "ASTRO", category: "meta-fw", pattern: /from\s+['"]astro['"]/i },
-    // Backend frameworks
-    { name: "EXPRESS", category: "backend", pattern: /require\(['"]express['"]\)|from\s+['"]express['"]/i },
-    { name: "FASTIFY", category: "backend", pattern: /from\s+['"]fastify['"]/i },
-    { name: "NESTJS", category: "backend", pattern: /from\s+['"]@nestjs\//i },
-    { name: "KOA", category: "backend", pattern: /from\s+['"]koa['"]/i },
-    { name: "HAPI", category: "backend", pattern: /from\s+['"]@hapi\//i },
-    { name: "ELYSIA", category: "backend", pattern: /from\s+['"]elysia['"]/i },
-    // HTTP clients
-    { name: "AXIOS", category: "http-client", pattern: /from\s+['"]axios['"]/i },
-    { name: "GOT", category: "http-client", pattern: /from\s+['"]got['"]/i },
-    { name: "NODEFETCH", category: "http-client", pattern: /from\s+['"]node-fetch['"]/i },
-    { name: "KY", category: "http-client", pattern: /from\s+['"]ky['"]/i },
-    { name: "SUPERAGENT", category: "http-client", pattern: /from\s+['"]superagent['"]/i },
-    // Database / ORM
-    { name: "PRISMA", category: "database", pattern: /from\s+['"]@prisma\//i },
-    { name: "MONGOOSE", category: "database", pattern: /from\s+['"]mongoose['"]/i },
-    { name: "TYPEORM", category: "database", pattern: /from\s+['"]typeorm['"]/i },
-    { name: "SEQUELIZE", category: "database", pattern: /from\s+['"]sequelize['"]/i },
-    { name: "DRIZZLE", category: "database", pattern: /from\s+['"]drizzle-orm\//i },
-    { name: "KNEX", category: "database", pattern: /from\s+['"]knex['"]/i },
-    // Testing
-    { name: "JEST", category: "testing", pattern: /from\s+['"](?:jest|@jest\/)['"]|require\(['"]jest['"]\)/i },
-    { name: "VITEST", category: "testing", pattern: /from\s+['"]vitest['"]/i },
-    { name: "MOCHA", category: "testing", pattern: /from\s+['"]mocha['"]/i },
-    { name: "PLAYWRIGHT", category: "testing", pattern: /from\s+['"]@playwright\//i },
-    { name: "CYPRESS", category: "testing", pattern: /from\s+['"]cypress['"]/i },
-    // Build tools
-    { name: "VITE", category: "build", pattern: /from\s+['"]vite['"]/i },
-    { name: "WEBPACK", category: "build", pattern: /from\s+['"]webpack['"]/i },
-    { name: "ROLLUP", category: "build", pattern: /from\s+['"]rollup['"]/i },
-    // State management
-    { name: "REDUX", category: "state", pattern: /from\s+['"](?:redux|@reduxjs\/)\//i },
-    { name: "ZUSTAND", category: "state", pattern: /from\s+['"]zustand['"]/i },
-    { name: "JOTAI", category: "state", pattern: /from\s+['"]jotai['"]/i },
-    { name: "RECOIL", category: "state", pattern: /from\s+['"]recoil['"]/i },
-    { name: "MOBX", category: "state", pattern: /from\s+['"]mobx['"]/i },
-    // Auth
-    { name: "PASSPORT", category: "auth", pattern: /from\s+['"]passport['"]/i },
-    { name: "NEXTAUTH", category: "auth", pattern: /from\s+['"]next-auth['"]/i },
-    { name: "LUCIA", category: "auth", pattern: /from\s+['"]lucia['"]/i },
-    { name: "JOSE", category: "auth", pattern: /from\s+['"]jose['"]/i },
-    // Cloud / infra
-    { name: "AWSSDK", category: "infra", pattern: /from\s+['"]@aws-sdk\//i },
-    { name: "FIREBASE", category: "infra", pattern: /from\s+['"]firebase\//i },
-    { name: "SUPABASE", category: "infra", pattern: /from\s+['"]@supabase\//i },
+    // ── JCL constructs ───────────────────────────────────────────────────────
+    { name: "JCL-SORT",    category: "jcl-utility",  families: ["mainframe"], pattern: /PGM=SORT\b/i },
+    { name: "JCL-IEFBR14",category: "jcl-utility",  families: ["mainframe"], pattern: /PGM=IEFBR14\b/i },
+    { name: "JCL-IEBGENER",category:"jcl-utility",  families: ["mainframe"], pattern: /PGM=IEBGENER\b/i },
+    { name: "JCL-IEBCOPY", category: "jcl-utility",  families: ["mainframe"], pattern: /PGM=IEBCOPY\b/i },
+    { name: "JCL-IDCAMS",  category: "jcl-utility",  families: ["mainframe"], pattern: /PGM=IDCAMS\b/i },
+    { name: "DFSORT",      category: "jcl-utility",  families: ["mainframe"], pattern: /DFSORT|SORTLIB/i },
+    { name: "DB2-JCL",     category: "database",     families: ["mainframe"], pattern: /PGM=DSNUTILB|PGM=IKJEFT01|DSNHDECP/i },
+    { name: "CICS-JCL",    category: "middleware",   families: ["mainframe"], pattern: /PGM=DFHSIP|CICS\b/i },
+    { name: "IMS-JCL",     category: "database",     families: ["mainframe"], pattern: /PGM=DFSRRC00|PGM=DFSURGL0|IMS\b/i },
+    { name: "MQ-JCL",      category: "messaging",    families: ["mainframe"], pattern: /PGM=CSQUTIL|MQSERIES/i },
+    // ── COBOL statements & copybooks ─────────────────────────────────────────
+    { name: "COBOL-DB2",   category: "database",     families: ["mainframe"], pattern: /EXEC\s+SQL\b|INCLUDE\s+SQLCA|DCLGEN/i },
+    { name: "COBOL-CICS",  category: "middleware",   families: ["mainframe"], pattern: /EXEC\s+CICS\b/i },
+    { name: "COBOL-IMS",   category: "database",     families: ["mainframe"], pattern: /EXEC\s+DLI\b|PCB\s+TYPE=/i },
+    { name: "COBOL-FILE",  category: "io",           families: ["mainframe"], pattern: /COPY\s+\w+|CALL\s+['"][^'"]+['"]/i },
+    { name: "COBOL-SORT",  category: "jcl-utility",  families: ["mainframe"], pattern: /\bSORT\s+\w|\bMERGE\s+\w/i },
+    // ── REXX functions & facilities ──────────────────────────────────────────
+    { name: "REXX-TSO",    category: "mainframe-api",families: ["mainframe"], pattern: /\bADDRESS\s+TSO\b/i },
+    { name: "REXX-ISPF",   category: "mainframe-api",families: ["mainframe"], pattern: /\bADDRESS\s+ISPF\b|\bISPEXEC\b/i },
+    { name: "REXX-MVS",    category: "mainframe-api",families: ["mainframe"], pattern: /\bADDRESS\s+MVS\b/i },
+    { name: "REXX-SQL",    category: "database",     families: ["mainframe"], pattern: /\bADDRESS\s+DSNREXX\b|EXECSQL/i },
+    { name: "REXX-SYSVAR", category: "mainframe-api",families: ["mainframe"], pattern: /\bSYSVAR\(|MVSVAR\(/i },
+    // ── C / C++ libraries ────────────────────────────────────────────────────
+    { name: "STDLIB-C",    category: "c-stdlib",     families: ["c-family"],  pattern: /#include\s*[<"](?:stdio|stdlib|string|math|time|assert|ctype|errno|float|limits|locale|setjmp|signal|stdarg|stdbool|stddef|stdint|unistd)\.h[>"]/i },
+    { name: "POSIX",       category: "c-stdlib",     families: ["c-family"],  pattern: /#include\s*[<"](?:pthread|sys\/socket|sys\/types|sys\/stat|netinet|arpa|dirent|fcntl|poll|select)\.h[>"]/i },
+    { name: "OPENSSL",     category: "security",     families: ["c-family"],  pattern: /#include\s*[<"]openssl\//i },
+    { name: "LIBCURL",     category: "http-client",  families: ["c-family"],  pattern: /#include\s*[<"]curl\//i },
+    { name: "SQLITE-C",    category: "database",     families: ["c-family"],  pattern: /#include\s*[<"]sqlite3\.h[>"]/i },
+    { name: "ZLIB",        category: "compression",  families: ["c-family"],  pattern: /#include\s*[<"]zlib\.h[>"]/i },
+    { name: "BOOST",       category: "cpp-lib",      families: ["c-family"],  pattern: /#include\s*[<"]boost\//i },
+    { name: "STL",         category: "cpp-lib",      families: ["c-family"],  pattern: /#include\s*[<"](?:vector|map|set|list|deque|queue|stack|algorithm|memory|functional|iterator|string|iostream|fstream|sstream)[>"]/i },
+    { name: "QT",          category: "cpp-gui",      families: ["c-family"],  pattern: /#include\s*[<"]Q[A-Z]\w+[>"]/i },
+    { name: "POCO",        category: "cpp-lib",      families: ["c-family"],  pattern: /#include\s*[<"]Poco\//i },
+    // ── Java / JVM imports ───────────────────────────────────────────────────
+    { name: "SPRING",      category: "jvm-fw",       families: ["jvm"],       pattern: /import\s+org\.springframework\./i },
+    { name: "SPRING-BOOT", category: "jvm-fw",       families: ["jvm"],       pattern: /import\s+org\.springframework\.boot\./i },
+    { name: "JAKARTA-EE",  category: "jvm-fw",       families: ["jvm"],       pattern: /import\s+jakarta\.|import\s+javax\./i },
+    { name: "HIBERNATE",   category: "database",     families: ["jvm"],       pattern: /import\s+org\.hibernate\./i },
+    { name: "JDBC",        category: "database",     families: ["jvm"],       pattern: /import\s+java\.sql\./i },
+    { name: "LOG4J",       category: "logging",      families: ["jvm"],       pattern: /import\s+org\.apache\.log4j\.|import\s+org\.apache\.logging\./i },
+    { name: "SLF4J",       category: "logging",      families: ["jvm"],       pattern: /import\s+org\.slf4j\./i },
+    { name: "JUNIT",       category: "testing",      families: ["jvm"],       pattern: /import\s+org\.junit\./i },
+    { name: "MOCKITO",     category: "testing",      families: ["jvm"],       pattern: /import\s+org\.mockito\./i },
+    { name: "KAFKA-JAVA",  category: "messaging",    families: ["jvm"],       pattern: /import\s+org\.apache\.kafka\./i },
+    { name: "HADOOP",      category: "big-data",     families: ["jvm"],       pattern: /import\s+org\.apache\.hadoop\./i },
+    { name: "SPARK",       category: "big-data",     families: ["jvm"],       pattern: /import\s+org\.apache\.spark\./i },
+    { name: "GRPC-JAVA",   category: "rpc",          families: ["jvm"],       pattern: /import\s+io\.grpc\./i },
+    { name: "AWSSDK-JAVA", category: "cloud",        families: ["jvm"],       pattern: /import\s+com\.amazonaws\.|import\s+software\.amazon\.awssdk\./i },
+    // ── Python imports ───────────────────────────────────────────────────────
+    { name: "DJANGO",      category: "py-fw",        families: ["python"],    pattern: /(?:^|\n)\s*(?:import|from)\s+django\b/i },
+    { name: "FLASK",       category: "py-fw",        families: ["python"],    pattern: /(?:^|\n)\s*(?:import|from)\s+flask\b/i },
+    { name: "FASTAPI",     category: "py-fw",        families: ["python"],    pattern: /(?:^|\n)\s*(?:import|from)\s+fastapi\b/i },
+    { name: "NUMPY",       category: "py-science",   families: ["python"],    pattern: /(?:^|\n)\s*(?:import\s+numpy|from\s+numpy)\b/i },
+    { name: "PANDAS",      category: "py-science",   families: ["python"],    pattern: /(?:^|\n)\s*(?:import\s+pandas|from\s+pandas)\b/i },
+    { name: "SCIPY",       category: "py-science",   families: ["python"],    pattern: /(?:^|\n)\s*(?:import\s+scipy|from\s+scipy)\b/i },
+    { name: "MATPLOTLIB",  category: "py-science",   families: ["python"],    pattern: /(?:^|\n)\s*(?:import\s+matplotlib|from\s+matplotlib)\b/i },
+    { name: "SKLEARN",     category: "py-ml",        families: ["python"],    pattern: /(?:^|\n)\s*(?:import\s+sklearn|from\s+sklearn)\b/i },
+    { name: "TENSORFLOW",  category: "py-ml",        families: ["python"],    pattern: /(?:^|\n)\s*(?:import\s+tensorflow|from\s+tensorflow)\b/i },
+    { name: "PYTORCH",     category: "py-ml",        families: ["python"],    pattern: /(?:^|\n)\s*(?:import\s+torch|from\s+torch)\b/i },
+    { name: "SQLALCHEMY",  category: "database",     families: ["python"],    pattern: /(?:^|\n)\s*(?:import\s+sqlalchemy|from\s+sqlalchemy)\b/i },
+    { name: "REQUESTS",    category: "http-client",  families: ["python"],    pattern: /(?:^|\n)\s*import\s+requests\b/i },
+    { name: "BOTO3",       category: "cloud",        families: ["python"],    pattern: /(?:^|\n)\s*import\s+boto3\b/i },
+    { name: "CELERY",      category: "task-queue",   families: ["python"],    pattern: /(?:^|\n)\s*(?:import\s+celery|from\s+celery)\b/i },
+    { name: "PYDANTIC",    category: "py-lib",       families: ["python"],    pattern: /(?:^|\n)\s*(?:import\s+pydantic|from\s+pydantic)\b/i },
+    { name: "ASYNCIO",     category: "py-stdlib",    families: ["python"],    pattern: /(?:^|\n)\s*import\s+asyncio\b/i },
+    { name: "SUBPROCESS",  category: "py-stdlib",    families: ["python"],    pattern: /(?:^|\n)\s*import\s+subprocess\b/i },
+    { name: "OS-MODULE",   category: "py-stdlib",    families: ["python"],    pattern: /(?:^|\n)\s*import\s+os\b/i },
+    { name: "SYS-MODULE",  category: "py-stdlib",    families: ["python"],    pattern: /(?:^|\n)\s*import\s+sys\b/i },
+    // ── Web / JS frameworks ──────────────────────────────────────────────────
+    { name: "REACT",       category: "frontend-fw",  families: ["web-js"],    pattern: /from\s+['"]react['"]/i },
+    { name: "VUE",         category: "frontend-fw",  families: ["web-js"],    pattern: /from\s+['"]vue['"]/i },
+    { name: "ANGULAR",     category: "frontend-fw",  families: ["web-js"],    pattern: /from\s+['"]@angular\//i },
+    { name: "SVELTE",      category: "frontend-fw",  families: ["web-js"],    pattern: /from\s+['"]svelte['"]/i },
+    { name: "SOLIDJS",     category: "frontend-fw",  families: ["web-js"],    pattern: /from\s+['"]solid-js['"]/i },
+    { name: "NEXTJS",      category: "meta-fw",      families: ["web-js"],    pattern: /from\s+['"]next(?:\/|['"])/i },
+    { name: "NUXT",        category: "meta-fw",      families: ["web-js"],    pattern: /from\s+['"](?:#app|nuxt)['"]/i },
+    { name: "REMIX",       category: "meta-fw",      families: ["web-js"],    pattern: /from\s+['"]@remix-run\//i },
+    { name: "ASTRO",       category: "meta-fw",      families: ["web-js"],    pattern: /from\s+['"]astro['"]/i },
+    { name: "EXPRESS",     category: "backend",      families: ["web-js"],    pattern: /require\(['"]express['"]\)|from\s+['"]express['"]/i },
+    { name: "FASTIFY",     category: "backend",      families: ["web-js"],    pattern: /from\s+['"]fastify['"]/i },
+    { name: "NESTJS",      category: "backend",      families: ["web-js"],    pattern: /from\s+['"]@nestjs\//i },
+    { name: "AXIOS",       category: "http-client",  families: ["web-js"],    pattern: /from\s+['"]axios['"]/i },
+    { name: "PRISMA",      category: "database",     families: ["web-js"],    pattern: /from\s+['"]@prisma\//i },
+    { name: "MONGOOSE",    category: "database",     families: ["web-js"],    pattern: /from\s+['"]mongoose['"]/i },
+    { name: "TYPEORM",     category: "database",     families: ["web-js"],    pattern: /from\s+['"]typeorm['"]/i },
+    { name: "DRIZZLE",     category: "database",     families: ["web-js"],    pattern: /from\s+['"]drizzle-orm\//i },
+    { name: "REDUX",       category: "state",        families: ["web-js"],    pattern: /from\s+['"](?:redux|@reduxjs\/)\//i },
+    { name: "ZUSTAND",     category: "state",        families: ["web-js"],    pattern: /from\s+['"]zustand['"]/i },
+    { name: "AWSSDK",      category: "cloud",        families: ["web-js"],    pattern: /from\s+['"]@aws-sdk\//i },
+    { name: "FIREBASE",    category: "cloud",        families: ["web-js"],    pattern: /from\s+['"]firebase\//i },
+    { name: "SUPABASE",    category: "cloud",        families: ["web-js"],    pattern: /from\s+['"]@supabase\//i },
+    { name: "JEST",        category: "testing",      families: ["web-js"],    pattern: /from\s+['"](?:jest|@jest\/)['"]/i },
+    { name: "VITEST",      category: "testing",      families: ["web-js"],    pattern: /from\s+['"]vitest['"]/i },
+    { name: "PLAYWRIGHT",  category: "testing",      families: ["web-js"],    pattern: /from\s+['"]@playwright\//i },
 ];
 
-// ─── File extensions to scan ──────────────────────────────────────────────────
-const SCANNABLE_EXTENSIONS = new Set([
-    ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs",
-    ".mts", ".cts", ".vue", ".svelte", ".astro",
-]);
+// ─── Extensions to scan ───────────────────────────────────────────────────────
 
-// ─── Directories to skip ──────────────────────────────────────────────────────
+const SCANNABLE_EXTENSIONS = new Set(Object.keys(EXTENSION_MAP));
+
+// ─── Directories / files to skip ─────────────────────────────────────────────
+
 const SKIP_DIRS = new Set([
     "node_modules", ".git", "dist", "build", ".next",
     ".nuxt", ".svelte-kit", "out", "coverage", ".turbo",
-    ".cache", "__pycache__", ".venv", "venv",
+    ".cache", "__pycache__", ".venv", "venv", "env",
+    "target", ".gradle", ".mvn", "bin", "obj",
 ]);
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -109,121 +214,63 @@ function computeHash(content: string): string {
     return crypto.createHash("md5").update(content).digest("hex").slice(0, 8).toUpperCase();
 }
 
-function extractImportedSymbols(importLine: string): string[] {
-    const symbols: string[] = [];
-    // import { a, b as c } from '...'
-    const namedMatch = importLine.match(/import\s*\{([^}]+)\}/);
-    if (namedMatch && namedMatch[1]) {
-        for (const part of namedMatch[1].split(",")) {
-            const clean = part.trim();
-            if (clean) {
-                const aliasMatch = clean.match(/\s+as\s+(\w+)/);
-                if (aliasMatch && aliasMatch[1]) {
-                    symbols.push(aliasMatch[1]);
-                } else {
-                    const idMatch = clean.match(/^(\w+)/);
-                    if (idMatch && idMatch[1]) symbols.push(idMatch[1]);
-                }
-            }
-        }
-    }
-    // import DefaultName from '...'
-    const defaultMatch = importLine.match(/import\s+([A-Za-z0-9_$]+)\s*(?:,|\s+from)/);
-    if (defaultMatch && defaultMatch[1] && defaultMatch[1] !== "type") {
-        symbols.push(defaultMatch[1]);
-    }
-    // const x = require('...')
-    const requireMatch = importLine.match(/(?:const|let|var)\s+([A-Za-z0-9_$]+|\{[^}]+\})\s*=\s*require/);
-    if (requireMatch && requireMatch[1]) {
-        if (requireMatch[1].startsWith("{")) {
-            const inner = requireMatch[1].slice(1, -1);
-            for (const s of inner.split(",")) {
-                const id = s.trim().split(":")[0]?.trim();
-                if (id) symbols.push(id);
-            }
-        } else {
-            symbols.push(requireMatch[1]);
-        }
-    }
-    return symbols;
-}
-
-function isTechUsedInBody(content: string, techName: string, symbols: string[]): boolean {
-    const lines = content.split("\n");
-    // Exclude import statements and top-level comments to check the actual code body
-    const bodyLines = lines.filter((l) => {
-        const trimmed = l.trim();
-        return !trimmed.startsWith("import ") &&
-               !trimmed.startsWith("import{") &&
-               !trimmed.startsWith("export * from") &&
-               !trimmed.startsWith("//") &&
-               !trimmed.startsWith("/*") &&
-               !trimmed.startsWith("*");
-    });
-    const bodyText = bodyLines.join("\n");
-
-    // Check if any explicitly imported identifier appears in the body
-    for (const sym of symbols) {
-        if (!sym || sym.length < 2) continue;
-        const symRegex = new RegExp(`\\b${sym}\\b`);
-        if (symRegex.test(bodyText)) {
-            return true;
-        }
-    }
-
-    // Technology-specific heuristic patterns
-    switch (techName.toUpperCase()) {
-        case "REACT":
-            return /<[A-Z][A-Za-z0-9]*|<\/|<React\.|use[A-Z][a-zA-Z0-9]*|React\./.test(bodyText);
-        case "NEXTJS":
-            return /useRouter|Link|Image|getServerSideProps|getStaticProps|NextResponse|NextRequest|redirect\(|notFound\(/.test(bodyText);
-        case "EXPRESS":
-            return /express\(|\.get\(|\.post\(|\.use\(|\.listen\(|Router\(/.test(bodyText);
-        case "SUPABASE":
-            return /createClient|supabase\.from|supabase\.auth|\.select\(|\.insert\(|\.update\(/.test(bodyText);
-        case "AXIOS":
-            return /axios\.get|axios\.post|axios\.put|axios\.delete|axios\(/.test(bodyText);
-        case "PRISMA":
-            return /prisma\.|new PrismaClient|\$queryRaw/.test(bodyText);
-        case "TAILWIND":
-            return /className=/.test(bodyText);
-        case "VUE":
-            return /<template|<script|defineComponent|ref\(|reactive\(/.test(bodyText);
-        case "SVELTE":
-            return /<script|\$state|\$derived/.test(bodyText);
-        case "REDUX":
-            return /useSelector|useDispatch|createSlice|configureStore/.test(bodyText);
-        case "ZUSTAND":
-            return /create\(|createStore\(/.test(bodyText);
-    }
-
-    const techRegex = new RegExp(`\\b${techName}\\b`, "i");
-    return techRegex.test(bodyText);
-}
-
-function detectImports(content: string): TechImport[] {
+/**
+ * For a given file (content + extension), scan each line for matches against
+ * the relevant TECH_PATTERNS (filtered by language family).
+ */
+function detectImports(content: string, langSpec: LanguageSpec): TechImport[] {
     const found: TechImport[] = [];
+    const family = langSpec.family;
     const lines = content.split("\n");
+
+    // Filter patterns applicable to this language family
+    const applicablePatterns = TECH_PATTERNS.filter(
+        (p) => !p.families || p.families.includes(family),
+    );
+
+    // For mainframe files (COBOL/JCL/REXX), scan all lines — not just import lines
+    const checkAll = family === "mainframe" || family === "c-family" || family === "data";
+
     for (const line of lines) {
         const trimmed = line.trim();
-        if (!trimmed.startsWith("import") && !trimmed.startsWith("require") && !trimmed.startsWith("from")) {
-            continue;
+        if (!trimmed || trimmed.startsWith("//--") /* JCL comment */) continue;
+
+        // For JS/Python/Java, skip lines that don't look like imports
+        if (!checkAll) {
+            if (langSpec.importStyle === "js-esm") {
+                if (!trimmed.startsWith("import") && !trimmed.startsWith("require") && !trimmed.startsWith("from")) continue;
+            } else if (langSpec.importStyle === "python") {
+                if (!trimmed.startsWith("import") && !trimmed.startsWith("from")) continue;
+            } else if (langSpec.importStyle === "java") {
+                if (!trimmed.startsWith("import") && !trimmed.startsWith("package")) continue;
+            }
         }
-        for (const tech of TECH_PATTERNS) {
+
+        for (const tech of applicablePatterns) {
             if (tech.pattern.test(trimmed)) {
                 if (!found.some((f) => f.techName === tech.name)) {
-                    const symbols = extractImportedSymbols(trimmed);
-                    const isUsed = isTechUsedInBody(content, tech.name, symbols);
                     found.push({
                         techName: tech.name,
                         category: tech.category,
                         importLine: trimmed.slice(0, 100),
-                        isUsedInBody: isUsed,
+                        isUsedInBody: true, // Mainframe/C/Java references ARE usage
                     });
                 }
             }
         }
     }
+
+    // For mainframe-native files that have no specific patterns but are
+    // identifiable by language, emit one "language-presence" record
+    if (found.length === 0 && family === "mainframe") {
+        found.push({
+            techName: langSpec.langName,
+            category: "mainframe",
+            importLine: `[${langSpec.langName} source file]`,
+            isUsedInBody: true,
+        });
+    }
+
     return found;
 }
 
@@ -259,12 +306,13 @@ export async function scanRepository(
                 walk(full);
             } else if (ent.isFile()) {
                 const ext = path.extname(ent.name).toLowerCase();
-                if (!SCANNABLE_EXTENSIONS.has(ext)) continue;
+                const langSpec = EXTENSION_MAP[ext];
+                if (!langSpec) continue;
 
                 let content: string;
                 try {
                     const stat = fs.statSync(full);
-                    if (stat.size > 2 * 1024 * 1024) continue; // skip >2MB files
+                    if (stat.size > 2 * 1024 * 1024) continue; // skip >2MB
                     content = fs.readFileSync(full, "utf-8");
                 } catch {
                     continue;
@@ -272,7 +320,7 @@ export async function scanRepository(
 
                 const relativePath = path.relative(abs, full).replace(/\\/g, "/");
                 const contentHash = computeHash(content);
-                const imports = detectImports(content);
+                const imports = detectImports(content, langSpec);
 
                 scannedFiles.push({
                     relativePath,
@@ -293,6 +341,9 @@ export async function scanRepository(
     }
 
     walk(abs);
+
+    // Final progress update
+    if (onProgress) onProgress(scannedCount, scannedFiles.filter((f) => f.imports.length > 0).length);
 
     // Build flat file records — one per (file, technology) combination
     const records: FlatFileRecord[] = [];
@@ -322,7 +373,6 @@ export async function scanRepository(
 
 /**
  * Apply AI usage judgments back to the flat file records.
- * The AI returns a mapping of filePath -> usageType for files it has evaluated.
  */
 export function applyAiJudgments(
     result: ScanResult,
