@@ -1,20 +1,21 @@
 /**
- * Mainframe Codebase Auditor — JCL Job Templates
+ * Mainframe Codebase Auditor - JCL Job Templates
  * ------------------------------------------------
  * Generates all JCL steps for the Hercules batch pipeline:
  *
- *   Upload            — IEBGENER inline flat file to MVS dataset
- *   Requirement 1     — JCL SORT by TECH_NAME for COBOL match-merge
- *   Requirement 2     — COBOL match-merge (AUDCOBOL vs TECHREF)
- *   Requirement 3     — REXX deduplication & primary-key sort (AUDRXXX)
- *   Requirement 4     — IBM SORT Descending + Count Integrity Check (AUDCOUNT)
- *   Report Retrieval  — IEBGENER copy to SYSOUT
+ *   Upload            - IEBGENER inline flat file to MVS dataset
+ *   Requirement 1     - JCL SORT by TECH_NAME for COBOL match-merge
+ *   Requirement 2     - COBOL match-merge (AUDCOBOL vs TECHREF)
+ *   Requirement 3     - REXX deduplication & primary-key sort (AUDRXXX)
+ *   Requirement 4     - IBM SORT Descending + Count Integrity Check (AUDCOUNT)
+ *   Report Retrieval  - IEBGENER copy to SYSOUT
  *
  * Verified TK5 Compatibility:
  *   - Device allocation: UNIT=3390,VOL=SER=WORK01
  *   - DFSORT library: SYS1.SORTLIB + SORTWK01..03
  *   - Security: USER=HERC01,PASSWORD=CUL8TR
  *   - Line length strictly <= 71 characters (MVS column limit)
+ *   - Output CLASS=A, MSGCLASS=A for automatic capture via PRINTER1 (prt00e.txt)
  */
 
 /** Generate a random 4-char suffix for unique job names */
@@ -40,7 +41,7 @@ function makeJobCard(
     const pwdPart = password ? `,PASSWORD=${password}` : "";
     return [
         `//${name} JOB (ACCT),'${desc}',`,
-        `//         CLASS=A,MSGCLASS=X,USER=${user}${pwdPart}`,
+        `//         CLASS=A,MSGCLASS=A,USER=${user}${pwdPart}`,
     ];
 }
 
@@ -66,7 +67,7 @@ export function generateJobNames(prefix: string = "AUD"): JclJobNames {
     };
 }
 
-// ─── Step 1: Upload flat file data to MVS dataset ────────────────────────────
+// --- Step 1: Upload flat file data to MVS dataset ----------------------------
 
 /**
  * JCL to upload the inline flat file data into an MVS sequential dataset
@@ -88,20 +89,19 @@ export function buildUploadJcl(
         `//STEP01   EXEC PGM=IEBGENER`,
         `//SYSPRINT DD SYSOUT=*`,
         `//SYSIN    DD DUMMY`,
-        `//SYSUT1   DD *`,
-        flatFileContent,
-        `/*`,
         `//SYSUT2   DD DSN=${datasetName},`,
         `//            DISP=(NEW,CATLG,DELETE),`,
         `//            UNIT=3390,VOL=SER=WORK01,`,
         `//            SPACE=(TRK,(5,5),RLSE),`,
         `//            DCB=(RECFM=FB,LRECL=${lrecl},BLKSIZE=${blksize})`,
+        `//SYSUT1   DD *`,
+        flatFileContent,
         `/*`,
         "",
     ].join("\n");
 }
 
-// ─── Step 2: Sort flat file by TECH_NAME ─────────────────────────────────────
+// --- Step 2: Sort flat file by TECH_NAME -------------------------------------
 
 /**
  * JCL SORT job: sorts the uploaded flat file by TECH_NAME (cols 41-50)
@@ -138,10 +138,11 @@ export function buildSortJcl(
     ].join("\n");
 }
 
-// ─── Step 3: COBOL match-merge ────────────────────────────────────────────────
+// --- Step 3: COBOL match-merge ------------------------------------------------
 
 /**
  * JCL to invoke the COBOL match-merge program (AUDCOBOL).
+ * Uses strictly alphabetically sorted reference records matching TECHREF.txt.
  */
 export function buildCobolJcl(
     jobName: string,
@@ -153,37 +154,39 @@ export function buildCobolJcl(
 ): string {
     const name = jclName(jobName);
 
-    // Inline technology reference table — 21 bytes each, padded to 80
+    // Alphabetically sorted technology reference table - exactly matching TECHREF.txt
+    // Format: 10 chars tech name + 10 chars category + 1 char canonical flag ('Y')
     const techRefRecords = [
-        "REACT     FRONTEND-FW Y",
-        "VUE       FRONTEND-FW Y",
         "ANGULAR   FRONTEND-FW Y",
-        "SVELTE    FRONTEND-FW Y",
-        "NEXTJS    META-FW     Y",
-        "NUXT      META-FW     Y",
+        "AWSSDK    INFRA       Y",
+        "AXIOS     HTTP-CLIENT Y",
+        "DRIZZLE   DATABASE    Y",
+        "ELYSIA    BACKEND     Y",
         "EXPRESS   BACKEND     Y",
         "FASTIFY   BACKEND     Y",
-        "NESTJS    BACKEND     Y",
-        "KOA       BACKEND     Y",
-        "ELYSIA    BACKEND     Y",
-        "AXIOS     HTTP-CLIENT Y",
-        "GOT       HTTP-CLIENT Y",
-        "NODEFETCH HTTP-CLIENT Y",
-        "PRISMA    DATABASE    Y",
-        "MONGOOSE  DATABASE    Y",
-        "TYPEORM   DATABASE    Y",
-        "DRIZZLE   DATABASE    Y",
-        "JEST      TESTING     Y",
-        "VITEST    TESTING     Y",
-        "PLAYWRIGHT TESTING    Y",
-        "VITE      BUILD       Y",
-        "REDUX     STATE       Y",
-        "ZUSTAND   STATE       Y",
-        "PASSPORT  AUTH        Y",
-        "NEXTAUTH  AUTH        Y",
-        "AWSSDK    INFRA       Y",
         "FIREBASE  INFRA       Y",
+        "GOT       HTTP-CLIENT Y",
+        "JEST      TESTING     Y",
+        "KOA       BACKEND     Y",
+        "MONGOOSE  DATABASE    Y",
+        "NESTJS    BACKEND     Y",
+        "NEXTAUTH  AUTH        Y",
+        "NEXTJS    META-FW     Y",
+        "NODEFETCH HTTP-CLIENT Y",
+        "NUXT      META-FW     Y",
+        "PASSPORT  AUTH        Y",
+        "PLAYWRIGHTTESTING     Y",
+        "PRISMA    DATABASE    Y",
+        "REACT     FRONTEND-FW Y",
+        "REDUX     STATE       Y",
         "SUPABASE  INFRA       Y",
+        "SVELTE    FRONTEND-FW Y",
+        "TAILWIND  STYLING     Y",
+        "TYPEORM   DATABASE    Y",
+        "VITE      BUILD       Y",
+        "VITEST    TESTING     Y",
+        "VUE       FRONTEND-FW Y",
+        "ZUSTAND   STATE       Y",
     ].map((r) => r.padEnd(80)).join("\n");
 
     return [
@@ -191,22 +194,21 @@ export function buildCobolJcl(
         `//STEP01   EXEC PGM=AUDCOBOL`,
         `//STEPLIB  DD DSN=${prefix}.LOADLIB,DISP=SHR`,
         `//SYSPRINT DD SYSOUT=*`,
+        `//SYSOUT   DD SYSOUT=*`,
         `//AUDREC   DD DSN=${sortedInputDsn},DISP=SHR`,
-        `//TECHREF  DD *`,
-        techRefRecords,
-        `/*`,
         `//AUDRPT   DD DSN=${outputDsn},`,
         `//            DISP=(NEW,CATLG,DELETE),`,
         `//            UNIT=3390,VOL=SER=WORK01,`,
         `//            SPACE=(TRK,(5,5),RLSE),`,
         `//            DCB=(RECFM=FB,LRECL=80,BLKSIZE=800)`,
-        `//SYSOUT   DD SYSOUT=*`,
+        `//TECHREF  DD *`,
+        techRefRecords,
         `/*`,
         "",
     ].join("\n");
 }
 
-// ─── Step 4: REXX deduplication + report finalization ─────────────────────────
+// --- Step 4: REXX deduplication + report finalization -------------------------
 
 /**
  * JCL to invoke the REXX exec AUDRXXX from EXEC PDS.
@@ -227,21 +229,20 @@ export function buildRexxJcl(
         `//SYSPRINT DD SYSOUT=*`,
         `//SYSTSPRT DD SYSOUT=*`,
         `//SYSEXEC  DD DSN=${prefix}.EXEC,DISP=SHR`,
-        `//SYSTSIN  DD *`,
-        `  EXEC '${prefix}.EXEC(AUDRXXX)'`,
-        `/*`,
         `//AUDRPT   DD DSN=${cobolOutputDsn},DISP=SHR`,
         `//AUDOUT   DD DSN=${finalOutputDsn},`,
         `//            DISP=(NEW,CATLG,DELETE),`,
         `//            UNIT=3390,VOL=SER=WORK01,`,
         `//            SPACE=(TRK,(5,5),RLSE),`,
         `//            DCB=(RECFM=FB,LRECL=80,BLKSIZE=800)`,
+        `//SYSTSIN  DD *`,
+        `  EXEC '${prefix}.EXEC(AUDRXXX)'`,
         `/*`,
         "",
     ].join("\n");
 }
 
-// ─── Requirement 4: IBM SORT Descending + Count Integrity Check ───────────────
+// --- Requirement 4: IBM SORT Descending + Count Integrity Check ---------------
 
 /**
  * Requirement 4 JCL:
@@ -295,7 +296,7 @@ export function buildStep4IntegrityJcl(
         `//SYSTSIN  DD *`,
         `  EXEC '${prefix}.EXEC(AUDCOUNT)'`,
         `/*`,
-        `//* STEP 3: SUCCESS PATH — KEEP OUTPUT ONLY IF COUNTS MATCH (RC=0)`,
+        `//* STEP 3: SUCCESS PATH - KEEP OUTPUT ONLY IF COUNTS MATCH (RC=0)`,
         `//STEPKEEP EXEC PGM=IEBGENER,COND=(0,NE,STEPCOMP)`,
         `//SYSPRINT DD SYSOUT=*`,
         `//SYSUT1   DD DSN=&&SORTDESC,DISP=(OLD,DELETE)`,
@@ -305,20 +306,19 @@ export function buildStep4IntegrityJcl(
         `//            SPACE=(TRK,(5,5),RLSE),`,
         `//            DCB=(RECFM=FB,LRECL=80,BLKSIZE=800)`,
         `//SYSIN    DD DUMMY`,
-        `/*`,
-        `//* STEP 4: FAILURE PATH — EMIT ERROR ONLY IF COUNTS MISMATCH (RC!=0)`,
+        `//* STEP 4: FAILURE PATH - EMIT ERROR ONLY IF COUNTS MISMATCH (RC!=0)`,
         `//STEPERR  EXEC PGM=IKJEFT01,COND=(0,EQ,STEPCOMP)`,
         `//SYSPRINT DD SYSOUT=*`,
         `//SYSTSPRT DD SYSOUT=*`,
         `//SYSTSIN  DD *`,
-        `  WRITE *** CRITICAL ERROR: INTEGRITY CHECK FAILED - RECORD COUNT MISMATCH ***`,
+        `  WRITE *** CRITICAL ERROR: INTEGRITY MISMATCH ***`,
         `  WRITE *** OUTPUT FILE DISCARDED PER AUDIT POLICY ***`,
         `/*`,
         "",
     ].join("\n");
 }
 
-// ─── Step 5: Report retrieval JCL (IEBGENER to SYSOUT) ───────────────────────
+// --- Step 5: Report retrieval JCL (IEBGENER to SYSOUT) ------------------------
 
 /**
  * JCL to copy the final report dataset to SYSOUT so it can be
@@ -344,7 +344,7 @@ export function buildReportJcl(
     ].join("\n");
 }
 
-// ─── Dataset name builder ─────────────────────────────────────────────────────
+// --- Dataset name builder -----------------------------------------------------
 
 export function buildDatasetNames(prefix: string, suffix: string) {
     const ts = suffix.slice(-4); // e.g. "4823"

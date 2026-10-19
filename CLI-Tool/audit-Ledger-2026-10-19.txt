@@ -1,0 +1,149 @@
+================================================================================
+          MAINFRAME CODEBASE AUDITOR — ENRICHED AUDIT REPORT                    
+================================================================================
+Target Repository  : D:\Projects_Extended\Ledger
+Audit Timestamp    : 2026-10-19T05:38:58.359Z
+Total Files Scanned: 49
+Files w/Libraries  : 28
+Total Tech Records : 39
+Authenticity Ratio : 100.0% GENUINE (39 Genuine, 0 Pseudo, 0 Unknown)
+--------------------------------------------------------------------------------
+
+START  JOB  125  AUDRP339  AUDIT-REPORT          ROOM        6.40.32 AM 19 OCT 26  PRINTER1  SYS TK5R  JOB  125  START  A****
+****A  START  JOB  125  AUDRP339  AUDIT-REPORT          ROOM        6.40.32 AM 19 OCT 26  PRINTER1  SYS TK5R  JOB  125  START  A****
+****A  START  JOB  125  AUDRP339  AUDIT-REPORT          ROOM        6.40.32 AM 19 OCT 26  PRINTER1  SYS TK5R  JOB  125  START  A****
+****A  START  JOB  125  AUDRP339  AUDIT-REPORT          ROOM        6.40.32 AM 19 OCT 26  PRINTER1  SYS TK5R  JOB  125  START  A****
+                                                J E S 2   J O B   L O G
+ 6.40.31 JOB  125  $HASP373 AUDRP339 STARTED - INIT  1 - CLASS A - SYS TK5R
+ 6.40.31 JOB  125  IEF403I AUDRP339 - STARTED - TIME=06.40.31
+ 6.40.32 JOB  125  IEFACTRT - Stepname  Procstep  Program   Retcode
+ 6.40.32 JOB  125  AUDRP339   STEP01              IEBGENER  RC= 0000
+ 6.40.32 JOB  125  IEF404I AUDRP339 - ENDED - TIME=06.40.32
+ 6.40.32 JOB  125  $HASP395 AUDRP339 ENDED
+------ JES2 JOB STATISTICS ------
+ 19 OCT 26 JOB EXECUTION DATE
+         8 CARDS READ
+        48 SYSOUT PRINT RECORDS
+         0 SYSOUT PUNCH RECORDS
+      0.00 MINUTES EXECUTION TIME
+    1     //AUDRP339 JOB (ACCT),'AUDIT-REPORT',                                   JOB  125
+          //         CLASS=A,MSGCLASS=A,USER=HERC01,PASSWORD=
+    2     //STEP01   EXEC PGM=IEBGENER
+    3     //SYSPRINT DD SYSOUT=*
+    4     //SYSUT1   DD DSN=HERC01.AUDIT.FINAL.DP339,DISP=SHR
+    5     //SYSUT2   DD SYSOUT=*
+    6     //SYSIN    DD DUMMY
+IEF236I ALLOC. FOR AUDRP339 STEP01
+IEF237I JES2 ALLOCATED TO SYSPRINT
+IEF237I 290  ALLOCATED TO SYSUT1
+IEF237I 190  ALLOCATED TO SYS00089
+IEF237I JES2 ALLOCATED TO SYSUT2
+IEF237I DMY  ALLOCATED TO SYSIN
+IEF142I AUDRP339 STEP01 - STEP WAS EXECUTED - COND CODE 0000
+IEF285I   JES2.JOB00125.SO0101                         SYSOUT
+IEF285I   HERC01.AUDIT.FINAL.DP339                     KEPT          *--------1
+IEF285I   VOL SER NOS= WORK01.
+IEF285I   SYS1.UCAT.TSO                                KEPT          *--------0
+IEF285I   VOL SER NOS= TSO001.
+IEF285I   JES2.JOB00125.SO0102                         SYSOUT
+IEF373I STEP /STEP01  / START 26292.0640
+IEF374I STEP /STEP01  / STOP  26292.0640 CPU    0MIN 00.02SEC SRB    0MIN 00.00SEC VIRT    40K SYS   200K
+************************************************************************************************************************************
+*     1. Jobstep of job: AUDRP339    Stepname: STEP01      Program name: IEBGENER   Executed on 19.10.26 from 06.40.31 to 06.40.32 *
+*         elapsed time  00:00:00,08                      CPU-Identifier:  TK5R           Page-in:      0                           *
+*             CPU time  00:00:00,02               Virtual Storage used:     40K         Page-out:      0                           *
+*           corr. CPU:  00:00:00,02   CPU time has been corrected by  1 / 1,0  multiplier                                          *
+*                                                                                                                                  *
+*     I/O Operation                                                                                                                *
+*     Number of records read via DD * or DD DATA:      0                                                                           *
+*     DMY.......0 290.......1 190.......0 DMY.......0 DMY.......0                                                                  *
+*                                                                                                                                  *
+*                                          Charge for step (w/o SYSOUT):          0,03                                             *
+************************************************************************************************************************************
+IEF375I  JOB /AUDRP339/ START 26292.0640
+IEF376I  JOB /AUDRP339/ STOP  26292.0640 CPU    0MIN 00.02SEC SRB    0MIN 00.00SEC
+DATA SET UTILITY - GENERATE                                                                       PAGE 0001
+IEB352I WARNING : OUTPUT RECFM/LRECL/BLKSIZE COPIED FROM INPUT
+PROCESSING ENDED AT EOD                  AAAAAAAAAA   UU        UU  DDDDDDDDD     RRRRRRRRRRR   PPPPPPPPPPP    3333333333    3333333333    9999999999
+                AAAAAAAAAAAA  UU        UU  DDDDDDDDDD    RRRRRRRRRRRR  PPPPPPPPPPPP  333333333333  333333333333  999999999999
+               AA        AA  UU        UU  DD       DD   RR        RR  PP        PP  33        33  33        33  99        99
+              AA        AA  UU        UU  DD        DD  RR        RR  PP        PP            33            33  99        99
+             AA        AA  UU        UU  DD        DD  RR        RR  PP        PP            33            33  99        99
+            AAAAAAAAAAAA  UU        UU  DD        DD  RRRRRRRRRRRR  PPPPPPPPPPPP         3333          3333   999999999999
+           AAAAAAAAAAAA  UU        UU  DD        DD  RRRRRRRRRRR   PPPPPPPPPPP          3333          3333   999999999999
+          AA        AA  UU        UU  DD        DD  RR    RR      PP                      33            33            99
+         AA        AA  UU        UU  DD        DD  RR     RR     PP                      33            33            99
+        AA        AA  UU        UU  DD       DD   RR      RR    PP            33        33  33        33  99        99
+       AA        AA  UUUUUUUUUUUU  DDDDDDDDDD    RR       RR   PP            333333333333  333333333333  999999999999
+      AA        AA   UUUUUUUUUU   DDDDDDDDD     RR        RR  PP             3333333333    3333333333    9999999999
+                    JJJJJJJJJJ       11        2222222222   555555555555                               AAAAAAAAAA
+                    JJJJJJJJJJ      111       222222222222  555555555555                              AAAAAAAAAAAA
+                        JJ         1111       22        22  55                                        AA        AA
+                        JJ           11                 22  55                                        AA        AA
+                        JJ           11                 22  55                                        AA        AA
+                        JJ           11                22   555555555                                 AAAAAAAAAAAA
+                        JJ           11              22     5555555555                                AAAAAAAAAAAA
+                        JJ           11            22                55                               AA        AA
+                  JJ    JJ           11          22                   55                              AA        AA
+                  JJ    JJ           11        22                     55                              AA        AA
+                  JJJJJJJJ       1111111111   222222222222  555555555555                              AA        AA
+                   JJJJJJ        1111111111   222222222222  55555555555                               AA        AA
+****A   END   JOB  125  AUDRP339  AUDIT-REPORT          ROOM        6.40.32 AM 19 OCT 26  PRINTER1  SYS TK5R  JOB  125   END   A****
+****A   END   JOB  125  AUDRP339  AUDIT-REPORT          ROOM        6.40.32 AM 19 OCT 26  PRINTER1  SYS TK5R  JOB  125   END   A****
+****A   END   JOB  125  AUDRP339  AUDIT-REPORT          ROOM        6.40.32 AM 19 OCT 26  PRINTER1  SYS TK5R  JOB  125   END   A****
+****A   END   JOB  125  AUDRP339  AUDIT-REPORT          ROOM        6.40.32 AM 19 OCT 26  PRINTER1  SYS TK5R  JOB  125   END   A****
+
+================================================================================
+                  DETAILED REPOSITORY DUPLICATE FILE AUDIT                      
+================================================================================
+  ✓ Zero duplicate files detected. All scanned files have unique MD5 content hashes.
+
+================================================================================
+                  FILE-BY-FILE TECHNOLOGY AUDIT LEDGER                          
+================================================================================
+  NUM | FILE PATH                                      | TECH         | USAGE    | HASH    
+  ----+------------------------------------------------+--------------+----------+---------
+    1 | backend/app.js                                 | EXPRESS      | GENUINE  | D72C3801
+    2 | backend/db/db.js                               | MONGOOSE     | GENUINE  | 38D630BC
+    3 | backend/models/session.models.js               | MONGOOSE     | GENUINE  | 55C48E11
+    4 | backend/models/space.models.js                 | MONGOOSE     | GENUINE  | CED7D781
+    5 | backend/models/users.models.js                 | MONGOOSE     | GENUINE  | 17CFC491
+    6 | backend/routes/auth/authRoutes.router.js       | EXPRESS      | GENUINE  | C11D45D0
+    7 | backend/routes/files/file.router.js            | EXPRESS      | GENUINE  | E7A9D4A5
+    8 | backend/routes/me/me.routes.js                 | EXPRESS      | GENUINE  | EAE5F645
+    9 | backend/routes/session/session.routes.js       | EXPRESS      | GENUINE  | 7258B471
+   10 | frontend/app/AuthContext.tsx                   | REACT        | GENUINE  | 9C170AA0
+   11 | frontend/app/components/Footer.tsx             | REACT        | GENUINE  | 200250F6
+   12 | frontend/app/components/Footer.tsx             | NEXTJS       | GENUINE  | 200250F6
+   13 | frontend/app/components/Navbar.tsx             | REACT        | GENUINE  | CC304FA4
+   14 | frontend/app/components/Navbar.tsx             | NEXTJS       | GENUINE  | CC304FA4
+   15 | frontend/app/components/Navbar.tsx             | AXIOS        | GENUINE  | CC304FA4
+   16 | frontend/app/components/ui/badge.tsx           | REACT        | GENUINE  | B8917F2C
+   17 | frontend/app/components/ui/button.tsx          | REACT        | GENUINE  | 80A5EE57
+   18 | frontend/app/components/ui/card.tsx            | REACT        | GENUINE  | E8F9FE72
+   19 | frontend/app/components/ui/input.tsx           | REACT        | GENUINE  | 4C1EAEB8
+   20 | frontend/app/components/ui/textarea.tsx        | REACT        | GENUINE  | 1BAF755C
+   21 | frontend/app/dashboard/page.tsx                | REACT        | GENUINE  | 07BA4BF9
+   22 | frontend/app/dashboard/page.tsx                | NEXTJS       | GENUINE  | 07BA4BF9
+   23 | frontend/app/helpers/axios.tsx                 | AXIOS        | GENUINE  | D63251B4
+   24 | frontend/app/hooks/useSocket.js                | REACT        | GENUINE  | 557ADE66
+   25 | frontend/app/layout.tsx                        | NEXTJS       | GENUINE  | 5875B302
+   26 | frontend/app/login/page.tsx                    | NEXTJS       | GENUINE  | 5A7E94B8
+   27 | frontend/app/login/page.tsx                    | AXIOS        | GENUINE  | 5A7E94B8
+   28 | frontend/app/login/page.tsx                    | REACT        | GENUINE  | 5A7E94B8
+   29 | frontend/app/page.tsx                          | REACT        | GENUINE  | 6BBB2E93
+   30 | frontend/app/page.tsx                          | NEXTJS       | GENUINE  | 6BBB2E93
+   31 | frontend/app/ProtectRoute.tsx                  | REACT        | GENUINE  | 9937E577
+   32 | frontend/app/ProtectRoute.tsx                  | NEXTJS       | GENUINE  | 9937E577
+   33 | frontend/app/receive/page.jsx                  | REACT        | GENUINE  | 027B830C
+   34 | frontend/app/session/page.jsx                  | REACT        | GENUINE  | 80EF92EE
+   35 | frontend/app/session/page.jsx                  | NEXTJS       | GENUINE  | 80EF92EE
+   36 | frontend/app/signup/page.tsx                   | NEXTJS       | GENUINE  | 17586501
+   37 | frontend/app/signup/page.tsx                   | AXIOS        | GENUINE  | 17586501
+   38 | frontend/app/signup/page.tsx                   | REACT        | GENUINE  | 17586501
+   39 | frontend/next.config.ts                        | NEXTJS       | GENUINE  | 9B77AF18
+
+
+================================================================================
+                      END OF MAINFRAME AUDIT REPORT                             
+================================================================================

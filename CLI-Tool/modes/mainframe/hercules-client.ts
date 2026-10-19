@@ -40,7 +40,8 @@ export function submitJcl(
 
         client.connect(config.cardReaderPort, config.host, () => {
             // JCL MUST end with /* on a line by itself
-            const payload = jcl.trim() + "\n/*\n";
+            const trimmed = jcl.trim();
+            const payload = (trimmed.endsWith("/*") ? trimmed : trimmed + "\n/*") + "\n";
             client.write(payload, "ascii", () => {
                 client.end();
             });
@@ -105,8 +106,13 @@ async function queryJobStatus(
     const upper = log.toUpperCase();
     const name = jobName.toUpperCase();
 
-    const started = upper.includes(`$HASP373 ${name}`) || upper.includes(`IEF403I ${name}`);
-    const completed = upper.includes(`$HASP395 ${name}`) || upper.includes(`IEF404I ${name}`) || upper.includes(`IEF452I ${name}`);
+    // Filter lines relevant to this specific job
+    const jobLines = upper.split("\n").filter((line) => line.includes(name));
+
+    const started = jobLines.some((l) => l.includes("$HASP373") || l.includes("IEF403I")) ||
+                    upper.includes(`$HASP373 ${name}`) || upper.includes(`IEF403I ${name}`);
+    const completed = jobLines.some((l) => l.includes("$HASP395") || l.includes("IEF404I") || l.includes("IEF452I") || l.includes("IEF453I")) ||
+                      upper.includes(`$HASP395 ${name}`) || upper.includes(`IEF404I ${name}`) || upper.includes(`IEF452I ${name}`);
 
     let hasJclError = false;
     let isFlushed = false;
@@ -116,51 +122,62 @@ async function queryJobStatus(
     let errorDetail: string | undefined;
     let returnCode: number | undefined;
 
-    // Check for JCL / Converter / Allocation errors
+    // Check for JCL / Converter / Allocation errors in job-specific lines
     if (
+        jobLines.some((l) => l.includes("IEF452I") || l.includes("IEF453I") || l.includes("JCL ERROR") || l.includes("RAKF0005")) ||
         upper.includes(`IEF452I ${name}`) ||
-        upper.includes(`IEF453I ${name}`) ||
-        (upper.includes(name) && upper.includes("JCL ERROR")) ||
-        (upper.includes(name) && upper.includes("RAKF0005"))
+        upper.includes(`IEF453I ${name}`)
     ) {
         hasJclError = true;
         errorDetail = "MVS JCL Error: Job failed during JCL parsing or dataset/device allocation (IEF452I/IEF453I)";
     }
 
     // Check for Cancellation
-    if (upper.includes(`IEF251I ${name}`) || (upper.includes(name) && upper.includes("JOB CANCELLED"))) {
+    if (jobLines.some((l) => l.includes("IEF251I") || l.includes("JOB CANCELLED"))) {
         isCancelled = true;
         errorDetail = "MVS Job Cancelled by operator or system";
     }
 
     // Check for Step Flush
-    if (upper.includes(name) && upper.includes("*FLUSH*")) {
+    if (jobLines.some((l) => l.includes("*FLUSH*"))) {
         isFlushed = true;
         if (!errorDetail) {
             errorDetail = "MVS Step Flushed: Prior condition code or allocation failure caused step flush";
         }
     }
 
-    // Check for ABEND
-    const abendMatch = upper.match(new RegExp(`${name}[\\s\\S]*?AB(?:END)?\\s*(?:S\\d+\\s*)?([US][0-9A-F]{3,4})`));
-    if (abendMatch || (upper.includes(name) && upper.includes("ABEND"))) {
+    // Check for ABEND in job-specific lines
+    const abendLine = jobLines.find((l) => l.includes("ABEND") || l.includes("IEF450I"));
+    if (abendLine) {
         hasAbend = true;
+        const abendMatch = abendLine.match(/AB(?:END)?(?:\s*=\s*|\s+)?([US][0-9A-F]{3,4})/i) ||
+                           abendLine.match(/([US][0-9A-F]{3,4})/);
         abendCode = abendMatch ? abendMatch[1] : undefined;
         errorDetail = `MVS ABEND${abendCode ? ` (${abendCode})` : ""}: Program terminated abnormally`;
     }
 
-    // Check for Return Code: e.g. "NAME STEP01 PROG RC= 0000" or "NAME ... RC=0000"
-    const rcRegex = new RegExp(`${name}[\\s\\S]*?RC=\\s*(\\d{1,4})`, "g");
-    const matches = [...upper.matchAll(rcRegex)];
-    if (matches.length > 0) {
-        const lastMatch = matches[matches.length - 1];
-        if (lastMatch && lastMatch[1]) {
-            returnCode = parseInt(lastMatch[1], 10);
+    // Check for Return Code in job lines: e.g. "NAME STEP01 PROG RC= 0000" or "NAME ... RC=0000"
+    for (const line of jobLines) {
+        const rcMatch = line.match(/RC\s*=\s*(\d{1,4})/);
+        if (rcMatch && rcMatch[1]) {
+            returnCode = parseInt(rcMatch[1], 10);
         }
     }
 
-    // If job ended normally (IEF404I) and had no RC explicitly found (e.g. IEFBR14) and no errors:
-    if (returnCode === undefined && upper.includes(`IEF404I ${name}`) && !hasJclError && !hasAbend && !isFlushed) {
+    // Fallback: check across log for this job's RC if not found in isolated lines
+    if (returnCode === undefined) {
+        const rcRegex = new RegExp(`${name}[\\s\\S]*?RC\\s*=\\s*(\\d{1,4})`, "g");
+        const matches = [...upper.matchAll(rcRegex)];
+        if (matches.length > 0) {
+            const lastMatch = matches[matches.length - 1];
+            if (lastMatch && lastMatch[1]) {
+                returnCode = parseInt(lastMatch[1], 10);
+            }
+        }
+    }
+
+    // If job ended normally (IEF404I or $HASP395) and had no RC explicitly found (e.g. IEFBR14) and no errors:
+    if (returnCode === undefined && (jobLines.some((l) => l.includes("IEF404I") || l.includes("$HASP395")) || upper.includes(`IEF404I ${name}`)) && !hasJclError && !hasAbend && !isFlushed && !isCancelled) {
         returnCode = 0;
     }
 
@@ -270,8 +287,14 @@ export async function getJobSysout(
             const prtContent = await fs.promises.readFile(config.printerPath, "utf-8");
             const prtUpper = prtContent.toUpperCase();
             if (prtUpper.includes(name)) {
-                const jobIdx = prtUpper.lastIndexOf(name);
-                const slice = prtContent.slice(Math.max(0, jobIdx - 300), jobIdx + 4000);
+                const firstIdx = prtUpper.indexOf(name);
+                const lastIdx = prtUpper.lastIndexOf(name);
+                // Expand backward to find job start banner
+                const startSearch = prtUpper.slice(0, firstIdx);
+                const startBanner = startSearch.lastIndexOf("START");
+                const jobStart = startBanner !== -1 ? startBanner : Math.max(0, firstIdx - 200);
+                const jobEnd = Math.min(prtContent.length, lastIdx + 300);
+                const slice = prtContent.slice(jobStart, jobEnd);
                 const lines = slice.split("\n").filter((l) => l.trim().length > 0);
                 if (lines.length > 5) {
                     return lines.join("\n");

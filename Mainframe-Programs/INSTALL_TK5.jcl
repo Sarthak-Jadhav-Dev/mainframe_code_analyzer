@@ -1,11 +1,10 @@
 //AUDINST1 JOB (ACCT),'INSTALL-AUDITOR',
-//         CLASS=A,MSGCLASS=X,USER=HERC01,PASSWORD=CUL8TR
+//         CLASS=A,MSGCLASS=A,USER=HERC01,PASSWORD=CUL8TR
 //*===================================================================*
 //* INSTALLATION JCL FOR MAINFRAME CODEBASE AUDITOR                   *
 //* 1. ALLOCATES HERC01.LOADLIB AND HERC01.EXEC                       *
-//* 2. LOADS AUDRXXX AND AUDCOUNT INTO HERC01.EXEC                    *
-//* 3. LOADS TECHREF INTO HERC01.AUDIT.TECHREF                        *
-//* 4. COMPILES & LINKS AUDCOBOL INTO HERC01.LOADLIB(AUDCOBOL)        *
+//* 2. LOADS TECHREF INTO HERC01.AUDIT.TECHREF                        *
+//* 3. COMPILES & LINKS AUDCOBOL INTO HERC01.LOADLIB(AUDCOBOL)        *
 //*===================================================================*
 //* STEP 1: ALLOCATE PDS LIBRARIES
 //STEP01   EXEC PGM=IEFBR14
@@ -24,7 +23,6 @@
 //            UNIT=3390,VOL=SER=WORK01,
 //            SPACE=(CYL,(1,1)),
 //            DCB=(RECFM=FB,LRECL=80,BLKSIZE=800)
-/*
 //* STEP 2: LOAD TECHREF DATA
 //STEP02   EXEC PGM=IEBGENER
 //SYSPRINT DD SYSOUT=*
@@ -116,10 +114,14 @@ ZUSTAND   STATE       Y
            05  WS-TECHREF-EOF     PIC X(1)      VALUE 'N'.
                88  TECHREF-AT-EOF               VALUE 'Y'.
        01  WS-SAVED-AUDREC.
-           05  WS-AR-PATH         PIC X(40).
+           05  WS-AR-PATH.
+               10  WS-AR-PATH-36  PIC X(36).
+               10  FILLER         PIC X(4).
            05  WS-AR-TECH         PIC X(10).
            05  WS-AR-HASH         PIC X(8).
-           05  WS-AR-USAGE        PIC X(10).
+           05  WS-AR-USAGE.
+               10  WS-AR-USAGE-8  PIC X(8).
+               10  FILLER         PIC X(2).
            05  WS-AR-COUNT        PIC 9(4).
        01  WS-SAVED-TECHREF.
            05  WS-TR-TECH         PIC X(10).
@@ -136,45 +138,48 @@ ZUSTAND   STATE       Y
            STOP RUN.
        1100-READ-AUDREC.
            READ AUDREC-FILE
-               AT END MOVE 'Y' TO WS-AUDREC-EOF MOVE HIGH-VALUES TO WS-AR-TECH
-               NOT AT END
-                   MOVE AR-FILE-PATH TO WS-AR-PATH
-                   MOVE AR-TECH-NAME TO WS-AR-TECH
-                   MOVE AR-CONTENT-HASH TO WS-AR-HASH
-                   MOVE AR-USAGE-TYPE TO WS-AR-USAGE
-                   MOVE AR-IMPORT-COUNT TO WS-AR-COUNT.
+               AT END
+                   MOVE 'Y'         TO WS-AUDREC-EOF
+                   MOVE HIGH-VALUES TO WS-AR-TECH.
+           IF WS-AUDREC-EOF = 'N'
+               MOVE AR-FILE-PATH    TO WS-AR-PATH
+               MOVE AR-TECH-NAME    TO WS-AR-TECH
+               MOVE AR-CONTENT-HASH TO WS-AR-HASH
+               MOVE AR-USAGE-TYPE   TO WS-AR-USAGE
+               MOVE AR-IMPORT-COUNT TO WS-AR-COUNT.
        1200-READ-TECHREF.
            READ TECHREF-FILE
-               AT END MOVE 'Y' TO WS-TECHREF-EOF MOVE HIGH-VALUES TO WS-TR-TECH
-               NOT AT END
-                   MOVE TR-TECH-NAME TO WS-TR-TECH
-                   MOVE TR-CATEGORY TO WS-TR-CAT
-                   MOVE TR-CANONICAL-FLAG TO WS-TR-CANON.
+               AT END
+                   MOVE 'Y'         TO WS-TECHREF-EOF
+                   MOVE HIGH-VALUES TO WS-TR-TECH.
+           IF WS-TECHREF-EOF = 'N'
+               MOVE TR-TECH-NAME      TO WS-TR-TECH
+               MOVE TR-CATEGORY       TO WS-TR-CAT
+               MOVE TR-CANONICAL-FLAG TO WS-TR-CANON.
        2000-PROCESS.
-           EVALUATE TRUE
-               WHEN WS-AR-TECH = WS-TR-TECH
-                    MOVE SPACES TO AUDRPT-RECORD
-                    MOVE WS-AR-PATH(1:36) TO OUT-FILE-PATH
-                    MOVE WS-AR-TECH TO OUT-TECH-NAME
-                    MOVE WS-AR-HASH TO OUT-CONTENT-HASH
-                    MOVE WS-TR-CAT TO OUT-CATEGORY
-                    MOVE WS-AR-USAGE(1:8) TO OUT-USAGE-TYPE
-                    MOVE 'MATCHED ' TO OUT-MATCH-STATUS
-                    WRITE AUDRPT-RECORD
-                    PERFORM 1100-READ-AUDREC
-               WHEN WS-AR-TECH < WS-TR-TECH
-                    MOVE SPACES TO AUDRPT-RECORD
-                    MOVE WS-AR-PATH(1:36) TO OUT-FILE-PATH
-                    MOVE WS-AR-TECH TO OUT-TECH-NAME
-                    MOVE WS-AR-HASH TO OUT-CONTENT-HASH
-                    MOVE 'UNKNOWN   ' TO OUT-CATEGORY
-                    MOVE WS-AR-USAGE(1:8) TO OUT-USAGE-TYPE
-                    MOVE 'UNMATCHD' TO OUT-MATCH-STATUS
-                    WRITE AUDRPT-RECORD
-                    PERFORM 1100-READ-AUDREC
-               WHEN WS-AR-TECH > WS-TR-TECH
-                    PERFORM 1200-READ-TECHREF
-           END-EVALUATE.
+           IF WS-AR-TECH = WS-TR-TECH
+               MOVE SPACES TO AUDRPT-RECORD
+               MOVE WS-AR-PATH-36 TO OUT-FILE-PATH
+               MOVE WS-AR-TECH TO OUT-TECH-NAME
+               MOVE WS-AR-HASH TO OUT-CONTENT-HASH
+               MOVE WS-TR-CAT TO OUT-CATEGORY
+               MOVE WS-AR-USAGE-8 TO OUT-USAGE-TYPE
+               MOVE 'MATCHED ' TO OUT-MATCH-STATUS
+               WRITE AUDRPT-RECORD
+               PERFORM 1100-READ-AUDREC
+           ELSE
+               IF WS-AR-TECH < WS-TR-TECH
+                   MOVE SPACES TO AUDRPT-RECORD
+                   MOVE WS-AR-PATH-36 TO OUT-FILE-PATH
+                   MOVE WS-AR-TECH TO OUT-TECH-NAME
+                   MOVE WS-AR-HASH TO OUT-CONTENT-HASH
+                   MOVE 'UNKNOWN   ' TO OUT-CATEGORY
+                   MOVE WS-AR-USAGE-8 TO OUT-USAGE-TYPE
+                   MOVE 'UNMATCHD' TO OUT-MATCH-STATUS
+                   WRITE AUDRPT-RECORD
+                   PERFORM 1100-READ-AUDREC
+               ELSE
+                   PERFORM 1200-READ-TECHREF.
 /*
 //LKED.SYSLMOD DD DSN=HERC01.LOADLIB(AUDCOBOL),DISP=SHR
 /*

@@ -1,12 +1,12 @@
 /* REXX */
 /*==================================================================*/
-/* AUDCOUNT — RECORD COUNT COMPARATOR FOR REQUIREMENT 4             */
+/* AUDCOUNT - RECORD COUNT COMPARATOR FOR REQUIREMENT 4             */
 /* COMPARES RECORD COUNTS OF TWO DATASETS (DS1 VS DS2)              */
 /* EXITS WITH RC=0 IF MATCH, RC=12 IF MISMATCH                      */
 /*==================================================================*/
 
 SAY "============================================================"
-SAY " AUDCOUNT: DATA INTEGRITY VERIFIER — REQUIREMENT 4          "
+SAY " AUDCOUNT: DATA INTEGRITY VERIFIER - REQUIREMENT 4          "
 SAY " COMPARING RECORD COUNTS BEFORE AND AFTER DESCENDING SORT   "
 SAY "============================================================"
 

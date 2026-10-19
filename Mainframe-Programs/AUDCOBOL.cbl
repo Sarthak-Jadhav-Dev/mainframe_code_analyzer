@@ -2,7 +2,7 @@
        PROGRAM-ID.    AUDCOBOL.
        AUTHOR.        MAINFRAME-CODEBASE-AUDITOR.
       *================================================================*
-      * REQUIREMENT 2 — COBOL TWO-FILE MATCH-MERGE                     *
+      * REQUIREMENT 2 - COBOL TWO-FILE MATCH-MERGE                     *
       *                                                                *
       * READS TWO SEQUENTIAL FILES:                                    *
       *   FILE 1 (AUDREC):  REPO IMPORT METADATA FROM PLOTORIS         *
@@ -23,7 +23,7 @@
        FILE SECTION.
       *
        FD  AUDREC-FILE
-           RECORDING MODE IS F
+           BLOCK CONTAINS 0 RECORDS
            LABEL RECORDS ARE STANDARD
            RECORD CONTAINS 80 CHARACTERS
            DATA RECORD IS AUDREC-RECORD.
@@ -36,7 +36,7 @@
            05  FILLER             PIC X(8).
       *
        FD  TECHREF-FILE
-           RECORDING MODE IS F
+           BLOCK CONTAINS 0 RECORDS
            LABEL RECORDS ARE STANDARD
            RECORD CONTAINS 80 CHARACTERS
            DATA RECORD IS TECHREF-RECORD.
@@ -47,7 +47,7 @@
            05  FILLER             PIC X(59).
       *
        FD  AUDRPT-FILE
-           RECORDING MODE IS F
+           BLOCK CONTAINS 0 RECORDS
            LABEL RECORDS ARE STANDARD
            RECORD CONTAINS 80 CHARACTERS
            DATA RECORD IS AUDRPT-RECORD.
@@ -85,10 +85,14 @@
       *
       *--- SAVED RECORD STORAGE FOR MATCHING ---*
        01  WS-SAVED-AUDREC.
-           05  WS-AR-PATH         PIC X(40).
+           05  WS-AR-PATH.
+               10  WS-AR-PATH-36  PIC X(36).
+               10  FILLER         PIC X(4).
            05  WS-AR-TECH         PIC X(10).
            05  WS-AR-HASH         PIC X(8).
-           05  WS-AR-USAGE        PIC X(10).
+           05  WS-AR-USAGE.
+               10  WS-AR-USAGE-8  PIC X(8).
+               10  FILLER         PIC X(2).
            05  WS-AR-COUNT        PIC 9(4).
       *
        01  WS-SAVED-TECHREF.
@@ -109,7 +113,7 @@
        1000-INITIALIZATION.
            DISPLAY '=================================================='.
            DISPLAY ' AUDCOBOL: STARTING TWO-FILE MATCH-MERGE AUDIT    '.
-           DISPLAY ' REQUIREMENT 2 — VALIDATING TECH AGAINST TECHREF  '.
+           DISPLAY ' REQUIREMENT 2 - VALIDATING TECH AGAINST TECHREF  '.
            DISPLAY '=================================================='.
            OPEN INPUT  AUDREC-FILE
                        TECHREF-FILE
@@ -120,48 +124,45 @@
        1100-READ-AUDREC.
            READ AUDREC-FILE
                AT END
-                   MOVE 'Y'            TO WS-AUDREC-EOF
-                   MOVE HIGH-VALUES    TO WS-AR-TECH
-               NOT AT END
-                   ADD 1               TO WS-AUDREC-COUNT
-                   MOVE AR-FILE-PATH   TO WS-AR-PATH
-                   MOVE AR-TECH-NAME   TO WS-AR-TECH
-                   MOVE AR-CONTENT-HASH TO WS-AR-HASH
-                   MOVE AR-USAGE-TYPE  TO WS-AR-USAGE
-                   MOVE AR-IMPORT-COUNT TO WS-AR-COUNT
-           END-READ.
+                   MOVE 'Y'         TO WS-AUDREC-EOF
+                   MOVE HIGH-VALUES TO WS-AR-TECH.
+           IF WS-AUDREC-EOF = 'N'
+               ADD 1               TO WS-AUDREC-COUNT
+               MOVE AR-FILE-PATH   TO WS-AR-PATH
+               MOVE AR-TECH-NAME   TO WS-AR-TECH
+               MOVE AR-CONTENT-HASH TO WS-AR-HASH
+               MOVE AR-USAGE-TYPE  TO WS-AR-USAGE
+               MOVE AR-IMPORT-COUNT TO WS-AR-COUNT.
       *
        1200-READ-TECHREF.
            READ TECHREF-FILE
                AT END
-                   MOVE 'Y'            TO WS-TECHREF-EOF
-                   MOVE HIGH-VALUES    TO WS-TR-TECH
-               NOT AT END
-                   ADD 1               TO WS-TECHREF-COUNT
-                   MOVE TR-TECH-NAME   TO WS-TR-TECH
-                   MOVE TR-CATEGORY    TO WS-TR-CAT
-                   MOVE TR-CANONICAL-FLAG TO WS-TR-CANON
-           END-READ.
+                   MOVE 'Y'         TO WS-TECHREF-EOF
+                   MOVE HIGH-VALUES TO WS-TR-TECH.
+           IF WS-TECHREF-EOF = 'N'
+               ADD 1               TO WS-TECHREF-COUNT
+               MOVE TR-TECH-NAME   TO WS-TR-TECH
+               MOVE TR-CATEGORY    TO WS-TR-CAT
+               MOVE TR-CANONICAL-FLAG TO WS-TR-CANON.
       *
        2000-PROCESS-MATCH-MERGE.
-           EVALUATE TRUE
-               WHEN WS-AR-TECH = WS-TR-TECH
-                    PERFORM 2100-WRITE-MATCHED-RECORD
-                    PERFORM 1100-READ-AUDREC
-               WHEN WS-AR-TECH < WS-TR-TECH
-                    PERFORM 2200-WRITE-UNMATCHED-RECORD
-                    PERFORM 1100-READ-AUDREC
-               WHEN WS-AR-TECH > WS-TR-TECH
-                    PERFORM 1200-READ-TECHREF
-           END-EVALUATE.
+           IF WS-AR-TECH = WS-TR-TECH
+               PERFORM 2100-WRITE-MATCHED-RECORD
+               PERFORM 1100-READ-AUDREC
+           ELSE
+               IF WS-AR-TECH < WS-TR-TECH
+                   PERFORM 2200-WRITE-UNMATCHED-RECORD
+                   PERFORM 1100-READ-AUDREC
+               ELSE
+                   PERFORM 1200-READ-TECHREF.
       *
        2100-WRITE-MATCHED-RECORD.
            MOVE SPACES             TO AUDRPT-RECORD.
-           MOVE WS-AR-PATH(1:36)   TO OUT-FILE-PATH.
+           MOVE WS-AR-PATH-36      TO OUT-FILE-PATH.
            MOVE WS-AR-TECH         TO OUT-TECH-NAME.
            MOVE WS-AR-HASH         TO OUT-CONTENT-HASH.
            MOVE WS-TR-CAT          TO OUT-CATEGORY.
-           MOVE WS-AR-USAGE(1:8)   TO OUT-USAGE-TYPE.
+           MOVE WS-AR-USAGE-8      TO OUT-USAGE-TYPE.
            MOVE 'MATCHED '         TO OUT-MATCH-STATUS.
            WRITE AUDRPT-RECORD.
            ADD 1                   TO WS-MATCH-COUNT.
@@ -169,11 +170,11 @@
       *
        2200-WRITE-UNMATCHED-RECORD.
            MOVE SPACES             TO AUDRPT-RECORD.
-           MOVE WS-AR-PATH(1:36)   TO OUT-FILE-PATH.
+           MOVE WS-AR-PATH-36      TO OUT-FILE-PATH.
            MOVE WS-AR-TECH         TO OUT-TECH-NAME.
            MOVE WS-AR-HASH         TO OUT-CONTENT-HASH.
            MOVE 'UNKNOWN   '       TO OUT-CATEGORY.
-           MOVE WS-AR-USAGE(1:8)   TO OUT-USAGE-TYPE.
+           MOVE WS-AR-USAGE-8      TO OUT-USAGE-TYPE.
            MOVE 'UNMATCHD'         TO OUT-MATCH-STATUS.
            WRITE AUDRPT-RECORD.
            ADD 1                   TO WS-UNMATCH-COUNT.

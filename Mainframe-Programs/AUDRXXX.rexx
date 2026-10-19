@@ -1,6 +1,6 @@
 /* REXX */
 /*==================================================================*/
-/* AUDRXXX — MAINFRAME CODEBASE AUDITOR DEDUPLICATION & TAGGING    */
+/* AUDRXXX - MAINFRAME CODEBASE AUDITOR DEDUPLICATION & TAGGING    */
 /* REQUIREMENT 3: REXX PROGRAM TO REMOVE DUPLICATE RECORDS BY       */
 /*                PRIMARY KEY (CONTENT_HASH) AND SORT REMAINING     */
 /*                RECORDS, ENRICHING CATEGORIES AND STATISTICS.    */
@@ -8,7 +8,7 @@
 
 SAY "============================================================"
 SAY " AUDRXXX: STARTING DEDUPLICATION & REPORT AGGREGATION       "
-SAY " REQUIREMENT 3 — REMOVING DUPLICATE HASHES & SORTING        "
+SAY " REQUIREMENT 3 - REMOVING DUPLICATE HASHES & SORTING        "
 SAY "============================================================"
 
 /* 1. Allocate & Read Input from AUDRPT */
@@ -90,7 +90,7 @@ out_idx = 0
 
 /* Header Banner */
 out_idx = out_idx + 1
-out_stem.out_idx = LEFT("=== MAINFRAME CODEBASE AUDITOR — AUDIT REPORT ===", 80)
+out_stem.out_idx = LEFT("=== MAINFRAME CODEBASE AUDITOR - AUDIT REPORT ===", 80)
 out_idx = out_idx + 1
 out_stem.out_idx = LEFT("STAGE: REXX DEDUPLICATION & PRIMARY-KEY SORT (REQ 3)", 80)
 out_idx = out_idx + 1
@@ -131,7 +131,7 @@ IF dup_count > 0 THEN DO
 END
 
 out_idx = out_idx + 1
-out_stem.out_idx = LEFT("=== END OF REXX AUDIT STAGE — RC=0000 ===", 80)
+out_stem.out_idx = LEFT("=== END OF REXX AUDIT STAGE - RC=0000 ===", 80)
 out_stem.0 = out_idx
 
 /* 5. Write to AUDOUT */
