@@ -337,7 +337,7 @@ export async function getJobSysout(
 export function checkCardReaderReachable(config: MainframeConfig): Promise<boolean> {
     return new Promise((resolve) => {
         const client = new net.Socket();
-        client.setTimeout(3000);
+        client.setTimeout(5000);
 
         client.connect(config.cardReaderPort, config.host, () => {
             client.destroy();
@@ -358,7 +358,7 @@ export function checkCardReaderReachable(config: MainframeConfig): Promise<boole
 export async function checkHttpConsoleReachable(config: MainframeConfig): Promise<boolean> {
     try {
         const resp = await fetch(`http://${config.host}:${config.httpPort}/`, {
-            signal: AbortSignal.timeout(3000),
+            signal: AbortSignal.timeout(5000),
         });
         return resp.ok || resp.status < 500;
     } catch {
@@ -367,17 +367,25 @@ export async function checkHttpConsoleReachable(config: MainframeConfig): Promis
 }
 
 /**
- * Full connectivity check — tests both ports.
+ * Full connectivity check — tests both ports with an automatic retry.
  */
 export async function checkHerculesConnectivity(config: MainframeConfig): Promise<{
     cardReader: boolean;
     httpConsole: boolean;
     online: boolean;
 }> {
-    const [cardReader, httpConsole] = await Promise.all([
+    let [cardReader, httpConsole] = await Promise.all([
         checkCardReaderReachable(config),
         checkHttpConsoleReachable(config),
     ]);
+
+    if (!cardReader || !httpConsole) {
+        await sleep(600);
+        const retryReader = cardReader || (await checkCardReaderReachable(config));
+        const retryHttp = httpConsole || (await checkHttpConsoleReachable(config));
+        cardReader = retryReader;
+        httpConsole = retryHttp;
+    }
 
     return {
         cardReader,

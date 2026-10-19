@@ -35,7 +35,7 @@ import { flatFileToInlineData } from "../mainframe/flat-file-writer.ts";
 type Ctx = { reply: (t: string, o?: object) => Promise<unknown> };
 
 
-function buildSimulatedReport(scanResult: ScanResult): string {
+function buildSimulatedReport(scanResult: ScanResult, reason: string = "Hercules offline"): string {
     const techCount: Record<string, number> = {};
     const usageCount: Record<string, number> = { GENUINE: 0, PSEUDO: 0, UNKNOWN: 0 };
 
@@ -64,7 +64,7 @@ function buildSimulatedReport(scanResult: ScanResult): string {
         `<b>🖥️ Mainframe Codebase Audit Report</b>`,
         ``,
         `<b>Repository:</b> <code>${scanResult.repoPath}</code>`,
-        `<b>Mode:</b> ⚠️ Simulated (Hercules offline)`,
+        `<b>Mode:</b> ⚠️ Simulated (${reason})`,
         `<b>Scanned:</b> ${scanResult.totalFiles} files (${scanResult.filesWithImports} with imports)`,
         `<b>Total Records:</b> ${scanResult.records.length}`,
         ``,
@@ -227,13 +227,14 @@ export async function runMainframeAudit(ctx: Ctx, repoPath: string): Promise<voi
 
     await ctx.reply(`✅ Hercules TK5 online — running full 4-stage JCL pipeline…`);
 
-    // Step 3  Full pipeline
+    // Step 3 — Full pipeline
     let sysout: string | null = null;
     try {
         sysout = await runHerculesPipeline(ctx, scanResult);
     } catch (err) {
-        await ctx.reply(`⚠️ Pipeline error: ${err instanceof Error ? err.message : String(err)}\nFalling back to simulated report.`);
-        const report = buildSimulatedReport(scanResult);
+        const errMsg = err instanceof Error ? err.message : String(err);
+        await ctx.reply(`⚠️ Pipeline error: ${errMsg}\nFalling back to simulated report.`);
+        const report = buildSimulatedReport(scanResult, `Pipeline Error: ${errMsg}`);
         await ctx.reply(report, { parse_mode: "HTML" });
         return;
     }
