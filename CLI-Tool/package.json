@@ -6,6 +6,10 @@
   "bin": {
     "inspectra": "./index.ts"
   },
+  "scripts": {
+    "start": "bun run index.ts wakeup",
+    "wakeup": "bun run index.ts wakeup"
+  },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/pdfkit": "^0.17.6",

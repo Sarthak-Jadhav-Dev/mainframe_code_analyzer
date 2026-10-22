@@ -13,6 +13,7 @@ import chalk from "chalk";
 import { select, text, spinner, isCancel } from "@clack/prompts";
 import { generateText } from "ai";
 import { getAgentModel } from "../../ai/ai.config.ts";
+import { ICONS } from "../../terminal_ui/icons.ts";
 
 export interface ProjectPartition {
     id: string;
@@ -275,15 +276,15 @@ export async function promptUserForAuditScope(repoPath: string): Promise<ScopeSe
     const options = [
         {
             value: "ALL",
-            label: "🌐 Entire Project — Scan all files in the repository",
+            label: `${ICONS.globe} Entire Project ${ICONS.dash} Scan all files in the repository`,
         },
         ...partitions.map((p) => ({
             value: p.id,
-            label: `${p.label} — ${p.description} (${p.paths.join(", ")})`,
+            label: `${p.label} ${ICONS.dash} ${p.description} (${p.paths.join(", ")})`,
         })),
         {
             value: "CUSTOM",
-            label: "📁 Custom Path — Enter a specific folder or file manually",
+            label: `${ICONS.folder} Custom Path ${ICONS.dash} Enter a specific folder or file manually`,
         },
     ];
 

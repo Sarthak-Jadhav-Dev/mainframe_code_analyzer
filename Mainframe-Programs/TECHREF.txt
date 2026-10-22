@@ -1,30 +1,187 @@
-ANGULAR   FRONTEND-FW Y                                                         
-AWSSDK    INFRA       Y                                                         
-AXIOS     HTTP-CLIENT Y                                                         
-DRIZZLE   DATABASE    Y                                                         
-ELYSIA    BACKEND     Y                                                         
-EXPRESS   BACKEND     Y                                                         
-FASTIFY   BACKEND     Y                                                         
-FIREBASE  INFRA       Y                                                         
-GOT       HTTP-CLIENT Y                                                         
-JEST      TESTING     Y                                                         
-KOA       BACKEND     Y                                                         
-MONGOOSE  DATABASE    Y                                                         
-NESTJS    BACKEND     Y                                                         
-NEXTAUTH  AUTH        Y                                                         
-NEXTJS    META-FW     Y                                                         
-NODEFETCH HTTP-CLIENT Y                                                         
-NUXT      META-FW     Y                                                         
-PASSPORT  AUTH        Y                                                         
-PLAYWRIGHTTESTING     Y                                                         
-PRISMA    DATABASE    Y                                                         
-REACT     FRONTEND-FW Y                                                         
-REDUX     STATE       Y                                                         
-SUPABASE  INFRA       Y                                                         
-SVELTE    FRONTEND-FW Y                                                         
-TAILWIND  STYLING     Y                                                         
-TYPEORM   DATABASE    Y                                                         
-VITE      BUILD       Y                                                         
-VITEST    TESTING     Y                                                         
-VUE       FRONTEND-FW Y                                                         
-ZUSTAND   STATE       Y                                                         
+ACTIX     BACKEND   Y                                                           
+ADONIS    BACKEND   Y                                                           
+AIOHTTP   HTTP-CLI  Y                                                           
+ALPINE    FRONTEND  Y                                                           
+ANGULAR   FRONTEND  Y                                                           
+ANTHROPIC AI-LLM    Y                                                           
+APOLLO    API-QUERY Y                                                           
+APPWRITE  CLOUD     Y                                                           
+ASPNET    BACKEND   Y                                                           
+ASTRO     META-FW   Y                                                           
+ASYNCIO   PY-STDLIB Y                                                           
+AUTH0     AUTH      Y                                                           
+AWSSDK    CLOUD     Y                                                           
+AWSSDK-JAVCLOUD     Y                                                           
+AXIOS     HTTP-CLI  Y                                                           
+AXUM      BACKEND   Y                                                           
+AZURESDK  CLOUD     Y                                                           
+BABEL     BUILD     Y                                                           
+BCRYPT    SECURITY  Y                                                           
+BEAUTIFUL SCRAPING  Y                                                           
+BOOST     CPP-LIB   Y                                                           
+BOOTSTRAP STYLING   Y                                                           
+BOTO3     CLOUD     Y                                                           
+BULLMQ    MESSAGING Y                                                           
+BUN       RUNTIME   Y                                                           
+CASSANDRA DATABASE  Y                                                           
+CELERY    TASK-QUEUEY                                                           
+CHAI      TESTING   Y                                                           
+CHAKRA    UI-LIB    Y                                                           
+CHROMADB  VECTOR-DB Y                                                           
+CICS-JCL  MIDDLEWAREY                                                           
+CLERK     AUTH      Y                                                           
+CLOUDFLARECLOUD     Y                                                           
+COBOL-CICSMIDDLEWAREY                                                           
+COBOL-DB2 DATABASE  Y                                                           
+COBOL-FILEIO        Y                                                           
+COBOL-IMS DATABASE  Y                                                           
+COBOL-SORTJCL-UTIL  Y                                                           
+CYPRESS   TESTING   Y                                                           
+DASK      DATA-SCI  Y                                                           
+DB2-JCL   DATABASE  Y                                                           
+DENO      RUNTIME   Y                                                           
+DFSORT    JCL-UTIL  Y                                                           
+DIESEL    DATABASE  Y                                                           
+DJANGO    PY-FW     Y                                                           
+DOCKER    CONTAINER Y                                                           
+DRIZZLE   DATABASE  Y                                                           
+DYNAMODB  DATABASE  Y                                                           
+ECHO      BACKEND   Y                                                           
+ELECTRON  DESKTOP   Y                                                           
+ELYSIA    BACKEND   Y                                                           
+ESBUILD   BUILD     Y                                                           
+EXPRESS   BACKEND   Y                                                           
+FASTAPI   PY-FW     Y                                                           
+FASTIFY   BACKEND   Y                                                           
+FIBER     BACKEND   Y                                                           
+FIREBASE  CLOUD     Y                                                           
+FLASK     PY-FW     Y                                                           
+FLUTTER   MOBILE    Y                                                           
+GATSBY    META-FW   Y                                                           
+GCPSDK    CLOUD     Y                                                           
+GIN       BACKEND   Y                                                           
+GORM      DATABASE  Y                                                           
+GOT       HTTP-CLI  Y                                                           
+GRAPHQL   API-QUERY Y                                                           
+GRPC-JAVA RPC       Y                                                           
+HADOOP    BIG-DATA  Y                                                           
+HIBERNATE DATABASE  Y                                                           
+HONO      BACKEND   Y                                                           
+HTMX      FRONTEND  Y                                                           
+HTTPX     HTTP-CLI  Y                                                           
+HUGGINGFACAI-ML     Y                                                           
+IMS-JCL   DATABASE  Y                                                           
+JAKARTA-EEJVM-FW    Y                                                           
+JCL-IDCAMSJCL-UTIL  Y                                                           
+JCL-IEBCOPJCL-UTIL  Y                                                           
+JCL-IEBGENJCL-UTIL  Y                                                           
+JCL-IEFBR1JCL-UTIL  Y                                                           
+JCL-SORT  JCL-UTIL  Y                                                           
+JDBC      DATABASE  Y                                                           
+JEST      TESTING   Y                                                           
+JOOQ      DATABASE  Y                                                           
+JOTAI     STATE     Y                                                           
+JQUERY    FRONTEND  Y                                                           
+JUNIT     TESTING   Y                                                           
+JWT       SECURITY  Y                                                           
+K8S       CONTAINER Y                                                           
+KAFKA-JAVAMESSAGING Y                                                           
+KERAS     AI-ML     Y                                                           
+KNEX      DATABASE  Y                                                           
+KOA       BACKEND   Y                                                           
+KOTLIN-CORJVM-LIB   Y                                                           
+LANGCHAIN AI-LLM    Y                                                           
+LARAVEL   BACKEND   Y                                                           
+LIBCURL   HTTP-CLI  Y                                                           
+LLAMAINDEXAI-LLM    Y                                                           
+LOG4J     LOGGING   Y                                                           
+LUCIA     AUTH      Y                                                           
+LUCIDE    UI-ICONS  Y                                                           
+MATPLOTLIBPY-SCIENCEY                                                           
+MICRONAUT JVM-FW    Y                                                           
+MOBX      STATE     Y                                                           
+MOCHA     TESTING   Y                                                           
+MOCKITO   TESTING   Y                                                           
+MONGOOSE  DATABASE  Y                                                           
+MQ-JCL    MESSAGING Y                                                           
+MUI       UI-LIB    Y                                                           
+MYSQL     DATABASE  Y                                                           
+NATS      MESSAGING Y                                                           
+NEO4J     DATABASE  Y                                                           
+NESTJS    BACKEND   Y                                                           
+NETTY     NETWORK   Y                                                           
+NEXTAUTH  AUTH      Y                                                           
+NEXTJS    META-FW   Y                                                           
+NODEFETCH HTTP-CLI  Y                                                           
+NUMPY     PY-SCIENCEY                                                           
+NUXT      META-FW   Y                                                           
+OLLAMA    AI-LLM    Y                                                           
+OPENAI    AI-LLM    Y                                                           
+OPENSSL   SECURITY  Y                                                           
+OS-MODULE PY-STDLIB Y                                                           
+PANDAS    PY-SCIENCEY                                                           
+PASSPORT  AUTH      Y                                                           
+PINECONE  VECTOR-DB Y                                                           
+PINIA     STATE     Y                                                           
+PLAYWRIGHTTESTING   Y                                                           
+POCO      CPP-LIB   Y                                                           
+POLARS    DATA-SCI  Y                                                           
+POSIX     C-STDLIB  Y                                                           
+POSTGRES  DATABASE  Y                                                           
+PREACT    FRONTEND  Y                                                           
+PRISMA    DATABASE  Y                                                           
+PUPPETEER TESTING   Y                                                           
+PYDANTIC  PY-LIB    Y                                                           
+PYTEST    TESTING   Y                                                           
+PYTORCH   PY-ML     Y                                                           
+QT        CPP-GUI   Y                                                           
+QUARKUS   JVM-FW    Y                                                           
+RABBITMQ  MESSAGING Y                                                           
+RADIX     UI-LIB    Y                                                           
+RAILS     BACKEND   Y                                                           
+REACT     FRONTEND  Y                                                           
+RECOIL    STATE     Y                                                           
+REDIS     DATABASE  Y                                                           
+REDUX     STATE     Y                                                           
+REMIX     META-FW   Y                                                           
+REQUESTS  HTTP-CLI  Y                                                           
+REXX-ISPF MAINFRAME Y                                                           
+REXX-MVS  MAINFRAME Y                                                           
+REXX-SQL  DATABASE  Y                                                           
+REXX-SYSVAMAINFRAME Y                                                           
+REXX-TSO  MAINFRAME Y                                                           
+ROLLUP    BUILD     Y                                                           
+RUST-TOKIOASYNC     Y                                                           
+SASS      STYLING   Y                                                           
+SCIPY     PY-SCIENCEY                                                           
+SELENIUM  TESTING   Y                                                           
+SEQUELIZE DATABASE  Y                                                           
+SHADCN    UI-LIB    Y                                                           
+SKLEARN   PY-ML     Y                                                           
+SLF4J     LOGGING   Y                                                           
+SOLIDJS   FRONTEND  Y                                                           
+SPARK     BIG-DATA  Y                                                           
+SPRING    JVM-FW    Y                                                           
+SPRING-BOOJVM-FW    Y                                                           
+SQLALCHEMYDATABASE  Y                                                           
+SQLITE-C  DATABASE  Y                                                           
+STDLIB-C  C-STDLIB  Y                                                           
+STL       CPP-LIB   Y                                                           
+SUBPROCESSPY-STDLIB Y                                                           
+SUPABASE  CLOUD     Y                                                           
+SVELTE    FRONTEND  Y                                                           
+SWC       BUILD     Y                                                           
+SYS-MODULEPY-STDLIB Y                                                           
+TAILWIND  STYLING   Y                                                           
+TAURI     DESKTOP   Y                                                           
+TENSORFLOWPY-ML     Y                                                           
+TRPC      API-RPC   Y                                                           
+TURBO     BUILD     Y                                                           
+TYPEORM   DATABASE  Y                                                           
+VITE      BUILD     Y                                                           
+VITEST    TESTING   Y                                                           
+VUE       FRONTEND  Y                                                           
+WEBPACK   BUILD     Y                                                           
+XSTATE    STATE     Y                                                           
+ZLIB      COMPRESS  Y                                                           
+ZUSTAND   STATE     Y                                                           

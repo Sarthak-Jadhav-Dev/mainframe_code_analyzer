@@ -46,6 +46,7 @@ import {
 import { defaultMainframeConfig } from "./types.ts";
 import type { ScanResult, UsageType, MainframeConfig } from "./types.ts";
 import { renderTerminalMarkdown } from "../../terminal_ui/terminal_md.ts";
+import { ICONS } from "../../terminal_ui/icons.ts";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -71,15 +72,15 @@ function step(n: number, label: string) {
 }
 
 function success(msg: string) {
-    console.log(GREEN("  ✓ ") + msg);
+    console.log(GREEN(`  ${ICONS.check} `) + msg);
 }
 
 function warn(msg: string) {
-    console.log(YELLOW("  ⚠ ") + msg);
+    console.log(YELLOW(`  ${ICONS.warn} `) + msg);
 }
 
 function fail(msg: string) {
-    console.log(RED("  ✗ ") + msg);
+    console.log(RED(`  ${ICONS.error} `) + msg);
 }
 
 function info(msg: string) {
@@ -953,11 +954,11 @@ async function offerSaveReport(
         options: [
             {
                 value: "enhanced",
-                label: "🌟 Enhanced Report (AI Executive Analysis & Deep Insights -> .txt)",
+                label: `${ICONS.star} Enhanced Report (AI Executive Analysis & Deep Insights -> .txt)`,
             },
             {
                 value: "normal",
-                label: "📄 Normal Report (Standard Mainframe Batch Audit -> .txt)",
+                label: `${ICONS.doc} Normal Report (Standard Mainframe Batch Audit -> .txt)`,
             },
         ],
     });
