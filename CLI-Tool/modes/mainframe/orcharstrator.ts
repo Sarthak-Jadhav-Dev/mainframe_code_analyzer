@@ -909,8 +909,6 @@ async function generateAiEnhancedReport(
     return buildEnrichedNormalReport(scanResult, baseReport, isFailureTest);
 }
 
-// ─── Save Report Dialog ───────────────────────────────────────────────────────
-
 async function offerSaveReport(
     report: string,
     scanResult: ScanResult,
