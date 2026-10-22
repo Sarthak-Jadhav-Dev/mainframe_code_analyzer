@@ -25,6 +25,7 @@ import { text, select, spinner, isCancel } from "@clack/prompts";
 import { generateText } from "ai";
 import { getAgentModel } from "../../ai/ai.config.ts";
 import { scanRepository } from "./scanner.ts";
+import { promptUserForAuditScope } from "./partitioner.ts";
 import { flatFileToInlineData } from "./flat-file-writer.ts";
 import {
     buildUploadJcl,
@@ -234,6 +235,7 @@ function buildSimulatedReport(scanResult: ScanResult, simulateFailure: boolean =
         "  MAINFRAME CODEBASE AUDITOR — FULL BATCH AUDIT REPORT",
         "═".repeat(68),
         `  Target Repository : ${scanResult.repoPath}`,
+        `  Audit Scope       : ${scanResult.subScope || "Entire Repository (All Files)"}`,
         `  Scan Timestamp    : ${scanResult.scannedAt.toISOString()}`,
         `  Files Processed   : ${scanResult.totalFiles} (${scanResult.filesWithImports} importing libraries)`,
         `  Total Records     : ${scanResult.records.length}`,
@@ -534,17 +536,39 @@ export async function runMainframeMode(): Promise<void> {
         herculesAvailable = false;
     }
 
-    // ── Step 3: Scan repository ─────────────────────────────────────────
-    step(3, "Scanning Repository");
-    info("Detecting technology imports across all JS/TS/Vue/Svelte files…");
+    // ── Step 3: Select Audit Scope (AI Logical Partitioning) ────────────
+    step(3, "Select Audit Scope (AI-Powered Partitioning)");
+    const scopeResult = await promptUserForAuditScope(repoPath);
+    if (!scopeResult) {
+        info("Cancelled.");
+        return;
+    }
+
+    if (scopeResult.isScoped) {
+        success(`Audit Scope: ${scopeResult.scopeLabel}`);
+        if (scopeResult.targetPaths && scopeResult.targetPaths.length > 0) {
+            info(`Target components: ${scopeResult.targetPaths.join(", ")}`);
+        }
+    } else {
+        success("Audit Scope: Entire Repository (Full Project Scan)");
+    }
+
+    // ── Step 4: Scan repository ─────────────────────────────────────────
+    step(4, `Scanning Repository${scopeResult.isScoped ? ` [${scopeResult.scopeLabel}]` : ""}`);
+    info(`Detecting technology imports${scopeResult.isScoped ? " in selected component" : " across codebase"}…`);
 
     let scanResult: ScanResult;
     try {
         const scanSpinner = spinner();
         scanSpinner.start("Scanning…");
-        scanResult = await scanRepository(repoPath, (scanned, found) => {
-            scanSpinner.message(`Scanned ${scanned} files, ${found} with dependencies…`);
-        });
+        scanResult = await scanRepository(
+            repoPath,
+            (scanned, found) => {
+                scanSpinner.message(`Scanned ${scanned} files, ${found} with dependencies…`);
+            },
+            scopeResult.targetPaths,
+            scopeResult.scopeLabel,
+        );
         scanSpinner.stop();
     } catch (err) {
         fail(`Scan failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -556,13 +580,13 @@ export async function runMainframeMode(): Promise<void> {
     info(`Total records: ${scanResult.records.length}`);
 
     if (scanResult.records.length === 0) {
-        warn("No technology imports detected in this repository.");
-        warn("Make sure you're pointing at a JavaScript/TypeScript project.");
+        warn(`No technology imports detected in ${scopeResult.isScoped ? scopeResult.scopeLabel : "this repository"}.`);
+        warn("Make sure the chosen path contains supported source files.");
         return;
     }
 
-    // ── Step 4: AI Judgment Pass ────────────────────────────────────────
-    step(4, "AI Judgment Pass (Genuine vs Pseudo usage)");
+    // ── Step 5: AI Judgment Pass ────────────────────────────────────────
+    step(5, "AI Judgment Pass (Genuine vs Pseudo usage)");
 
     const judgeSpinner = spinner();
     judgeSpinner.start("Asking AI to classify usage…");
@@ -598,8 +622,8 @@ export async function runMainframeMode(): Promise<void> {
     info(`  PSEUDO  : ${pseudoCount}`);
     info(`  UNKNOWN : ${unknownCount}`);
 
-    // ── Step 5: Write flat file ─────────────────────────────────────────
-    step(5, "Preparing Fixed-Width Flat File (80-byte COBOL records)");
+    // ── Step 6: Write flat file ─────────────────────────────────────────
+    step(6, "Preparing Fixed-Width Flat File (80-byte COBOL records)");
 
     const tmpDir = path.join(os.tmpdir(), "mainframe-audit");
     const flatFilePath = path.join(tmpDir, `audit-${Date.now()}.dat`);
@@ -634,7 +658,7 @@ export async function runMainframeMode(): Promise<void> {
 
     if (!herculesAvailable) {
         // ── Simulated Mode ──────────────────────────────────────────────
-        step(6, "Simulated Pipeline (Hercules not running)");
+        step(7, "Simulated Pipeline (Hercules not running)");
         const report = buildSimulatedReport(scanResult, isFailureTest);
         displayReport(report, scanResult, repoPath);
         await offerSaveReport(report, scanResult, repoPath, isFailureTest);
@@ -661,6 +685,9 @@ function displayReport(report: string, scanResult: ScanResult, repoPath: string)
     console.log();
     console.log(PURPLE.bold("═".repeat(62)));
     console.log(CYAN.bold("  AUDIT COMPLETE"));
+    if (scanResult.subScope && scanResult.subScope !== "Entire Project") {
+        console.log(YELLOW.bold(`  SCOPE: ${scanResult.subScope}`));
+    }
     console.log(PURPLE.bold("═".repeat(62)));
     console.log();
     console.log(report);
@@ -751,6 +778,7 @@ function buildEnrichedNormalReport(
         "          MAINFRAME CODEBASE AUDITOR — ENRICHED AUDIT REPORT                    ",
         "================================================================================",
         `Target Repository  : ${scanResult.repoPath}`,
+        `Audit Scope        : ${scanResult.subScope || "Entire Repository (All Files)"}`,
         `Audit Timestamp    : ${scanResult.scannedAt.toISOString()}`,
         `Total Files Scanned: ${scanResult.totalFiles}`,
         `Files w/Libraries  : ${scanResult.filesWithImports}`,
@@ -827,6 +855,7 @@ async function generateAiEnhancedReport(
 
     const payload = {
         repository: repoPath,
+        auditScope: scanResult.subScope || "Entire Repository (All Files)",
         timestamp: scanResult.scannedAt.toISOString(),
         totalFiles: scanResult.totalFiles,
         filesWithImports: scanResult.filesWithImports,
@@ -859,9 +888,13 @@ async function generateAiEnhancedReport(
 
     try {
         const model = await getAgentModel();
+        const isScoped = Boolean(scanResult.subScope && scanResult.subScope !== "Entire Project");
         const prompt = [
             "You are an elite Enterprise Mainframe Systems Architect and Senior Codebase Auditor.",
             "Generate a comprehensive, highly enriched executive audit report in plain text (.txt format).",
+            isScoped
+                ? `NOTE: This audit is focused strictly on the selected component/module: "${scanResult.subScope}". Provide all evaluations, metrics, and recommendations specifically for this subsystem.`
+                : "",
             "",
             "AUDIT METRICS & DATASET TELEMETRY:",
             JSON.stringify(payload, null, 2),
@@ -944,7 +977,11 @@ async function offerSaveReport(
         fileContent = buildEnrichedNormalReport(scanResult, report, isFailureTest);
     }
 
-    const defaultName = `${isEnhanced ? "enhanced-audit" : "audit"}-${path.basename(repoPath)}-${new Date().toISOString().slice(0, 10)}.txt`;
+    const scopeSlug = (scanResult.subScope && scanResult.subScope !== "Entire Project")
+        ? scanResult.subScope.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 20)
+        : "";
+    const scopePart = scopeSlug ? `-${scopeSlug}` : "";
+    const defaultName = `${isEnhanced ? "enhanced-audit" : "audit"}-${path.basename(repoPath)}${scopePart}-${new Date().toISOString().slice(0, 10)}.txt`;
     const filename = await text({
         message: "Report filename:",
         initialValue: defaultName,

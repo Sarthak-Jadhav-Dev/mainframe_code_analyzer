@@ -283,6 +283,8 @@ function truncateTo(s: string, len: number): string {
 export async function scanRepository(
     repoPath: string,
     onProgress?: (scanned: number, found: number) => void,
+    targetSubpaths?: string[],
+    subScope?: string,
 ): Promise<ScanResult> {
     const abs = path.resolve(repoPath);
     if (!fs.existsSync(abs) || !fs.statSync(abs).isDirectory()) {
@@ -291,6 +293,44 @@ export async function scanRepository(
 
     const scannedFiles: ScannedFile[] = [];
     let scannedCount = 0;
+    const visitedFiles = new Set<string>();
+
+    function processFile(full: string) {
+        if (visitedFiles.has(full)) return;
+        visitedFiles.add(full);
+
+        const ext = path.extname(full).toLowerCase();
+        const langSpec = EXTENSION_MAP[ext];
+        if (!langSpec) return;
+
+        let content: string;
+        try {
+            const stat = fs.statSync(full);
+            if (stat.size > 2 * 1024 * 1024) return; // skip >2MB
+            content = fs.readFileSync(full, "utf-8");
+        } catch {
+            return;
+        }
+
+        const relativePath = path.relative(abs, full).replace(/\\/g, "/");
+        const contentHash = computeHash(content);
+        const imports = detectImports(content, langSpec);
+
+        scannedFiles.push({
+            relativePath,
+            absolutePath: full,
+            contentHash,
+            sizeBytes: Buffer.byteLength(content, "utf-8"),
+            extension: ext,
+            imports,
+            importCount: imports.length,
+        });
+
+        scannedCount++;
+        if (onProgress && scannedCount % 50 === 0) {
+            onProgress(scannedCount, scannedFiles.filter((f) => f.imports.length > 0).length);
+        }
+    }
 
     function walk(dir: string) {
         let entries: fs.Dirent[];
@@ -305,42 +345,27 @@ export async function scanRepository(
                 if (SKIP_DIRS.has(ent.name)) continue;
                 walk(full);
             } else if (ent.isFile()) {
-                const ext = path.extname(ent.name).toLowerCase();
-                const langSpec = EXTENSION_MAP[ext];
-                if (!langSpec) continue;
-
-                let content: string;
-                try {
-                    const stat = fs.statSync(full);
-                    if (stat.size > 2 * 1024 * 1024) continue; // skip >2MB
-                    content = fs.readFileSync(full, "utf-8");
-                } catch {
-                    continue;
-                }
-
-                const relativePath = path.relative(abs, full).replace(/\\/g, "/");
-                const contentHash = computeHash(content);
-                const imports = detectImports(content, langSpec);
-
-                scannedFiles.push({
-                    relativePath,
-                    absolutePath: full,
-                    contentHash,
-                    sizeBytes: Buffer.byteLength(content, "utf-8"),
-                    extension: ext,
-                    imports,
-                    importCount: imports.length,
-                });
-
-                scannedCount++;
-                if (onProgress && scannedCount % 50 === 0) {
-                    onProgress(scannedCount, scannedFiles.filter((f) => f.imports.length > 0).length);
-                }
+                processFile(full);
             }
         }
     }
 
-    walk(abs);
+    if (targetSubpaths && targetSubpaths.length > 0) {
+        for (const sub of targetSubpaths) {
+            const targetAbs = path.resolve(abs, sub);
+            if (!fs.existsSync(targetAbs)) continue;
+            try {
+                const stat = fs.statSync(targetAbs);
+                if (stat.isDirectory()) {
+                    walk(targetAbs);
+                } else if (stat.isFile()) {
+                    processFile(targetAbs);
+                }
+            } catch {}
+        }
+    } else {
+        walk(abs);
+    }
 
     // Final progress update
     if (onProgress) onProgress(scannedCount, scannedFiles.filter((f) => f.imports.length > 0).length);
@@ -363,6 +388,8 @@ export async function scanRepository(
 
     return {
         repoPath: abs,
+        subScope,
+        targetSubpaths,
         scannedAt: new Date(),
         totalFiles: scannedCount,
         filesWithImports: scannedFiles.filter((f) => f.imports.length > 0).length,

@@ -53,6 +53,8 @@ export interface ScannedFile {
 /** Overall result of scanning the entire repository */
 export interface ScanResult {
     repoPath: string;
+    subScope?: string;      // e.g. "Frontend UI & Components" or undefined for full project
+    targetSubpaths?: string[]; // specific subdirectories/files scanned
     scannedAt: Date;
     totalFiles: number;
     filesWithImports: number;
