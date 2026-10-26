@@ -335,19 +335,19 @@ export async function runAssignmentMode(): Promise<void> {
     step(4, "Extracting Code Blocks (Text + AI Vision OCR)");
 
     if (parsedDoc.images.length > 0) {
-        info(`  Sending ${parsedDoc.images.length} image(s) to AI Vision for code OCR…`);
-        info(`  This is how code inside screenshots gets extracted.")`);
+        info(`  Sending ${parsedDoc.images.length} image(s) to AI Vision for parallel OCR extraction…`);
+        info(`  Code inside screenshots and terminal windows will be captured.`);
     } else if (parsedDoc.textCodeBlocks.length === 0) {
         warn(`  No text code blocks and no images found — the document may be encrypted or corrupt.`);
     }
 
     const extractSpinner = spinner();
-    extractSpinner.start(`Running AI OCR on ${parsedDoc.images.length} page image(s)…`);
+    extractSpinner.start(`Running parallel AI OCR on ${parsedDoc.images.length} image(s)…`);
 
     let codeExtractionResult;
     try {
         codeExtractionResult = await extractAllCodeBlocks(parsedDoc, (done, total, src) => {
-            extractSpinner.message(`AI OCR: page ${done}/${total} — ${src}`);
+            extractSpinner.message(`AI OCR: ${done}/${total} — ${src}`);
         });
         extractSpinner.stop();
     } catch (err) {
@@ -366,7 +366,6 @@ export async function runAssignmentMode(): Promise<void> {
     info(`  Selectable-text code blocks : ${codeExtractionResult.textBlocks.length}`);
     info(`  Screenshot OCR code blocks  : ${codeExtractionResult.ocrBlocks.length}`);
     info(`  Duplicates removed          : ${codeExtractionResult.duplicatesRemoved}`);
-    info(`  Total unique blocks         : ${codeExtractionResult.allBlocks.length}`);
     info(`  Total unique blocks         : ${codeExtractionResult.allBlocks.length}`);
 
     if (codeExtractionResult.allBlocks.length === 0) {

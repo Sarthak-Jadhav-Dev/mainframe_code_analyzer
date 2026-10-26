@@ -7,7 +7,7 @@
 
 import crypto from "node:crypto";
 import { generateText } from "ai";
-import { getAgentModel } from "../../../ai/ai.config.ts";
+import { getVisionModel } from "../../../ai/ai.config.ts";
 import type { ParsedDocument, ExtractedCodeBlock, ExtractedImage } from "./types.ts";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -18,8 +18,8 @@ function hashCode(text: string): string {
 
 function detectLanguageFromOcr(code: string): string {
     const upper = code.toUpperCase();
-    if (/IDENTIFICATION DIVISION|PROCEDURE DIVISION|DATA DIVISION/.test(upper)) return "COBOL";
-    if (/^\/\/[A-Z][A-Z0-9 ]*(JOB|EXEC|DD)/m.test(upper)) return "JCL";
+    if (/IDENTIFICATION DIVISION|PROCEDURE DIVISION|DATA DIVISION|WORKING-STORAGE|PERFORM\s|DISPLAY\s/.test(upper)) return "COBOL";
+    if (/^\/\/[A-Z0-9$#@]+ +(JOB|EXEC|DD)/m.test(upper)) return "JCL";
     if (/REXX|SAY |PARSE VAR|DO WHILE|DO FOREVER/.test(upper)) return "REXX";
     if (/^(def |class |import |from |print\()/m.test(code)) return "Python";
     if (/public class|void main|System\.out|@Override/.test(code)) return "Java";
@@ -41,64 +41,75 @@ async function extractCodeFromImage(
     pageNumber: number,
     blockStartIndex: number,
 ): Promise<ExtractedCodeBlock[]> {
-    try {
-        const model = await getAgentModel();
+    const maxRetries = 2;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const model = await getVisionModel();
 
-        const { text } = await generateText({
-            model,
-            messages: [
-                {
-                    role: "user",
-                    content: [
-                        {
-                            type: "image",
-                            image: `data:${image.mimeType};base64,${image.data}`,
-                        },
-                        {
-                            type: "text",
-                            text: [
-                                "You are an expert OCR assistant analyzing a document page screenshot.",
-                                "Extract ALL code visible in this image.",
-                                "Rules:",
-                                "1. Extract every piece of code exactly as it appears — do NOT correct errors.",
-                                "2. If multiple code blocks exist in the image, separate them with '--- CODE BLOCK ---'.",
-                                "3. If there is NO code in the image, respond with exactly: NO_CODE",
-                                "4. Do not add any explanation, just the raw code.",
-                                "Respond now:",
-                            ].join("\n"),
-                        },
-                    ],
-                },
-            ],
-        });
-
-        if (!text || text.trim() === "NO_CODE" || text.trim().length < 10) {
-            return [];
-        }
-
-        // Split by separator if multiple blocks
-        const rawBlocks = text.split(/---\s*CODE BLOCK\s*---/i);
-        const results: ExtractedCodeBlock[] = [];
-
-        let idx = blockStartIndex;
-        for (const rawCode of rawBlocks) {
-            const code = rawCode.trim();
-            if (code.length < 10) continue;
-            results.push({
-                index: idx++,
-                language: detectLanguageFromOcr(code),
-                code,
-                source: "ocr",
-                pageNumber,
-                contentHash: hashCode(code),
+            const { text } = await generateText({
+                model,
+                messages: [
+                    {
+                        role: "user",
+                        content: [
+                            {
+                                type: "image",
+                                image: `data:${image.mimeType};base64,${image.data}`,
+                            },
+                            {
+                                type: "text",
+                                text: [
+                                    "You are an expert OCR and code extraction engine analyzing a student assignment screenshot.",
+                                    "The image may be a TN3270 terminal (green screen), a command terminal, or an IDE (e.g. VS Code).",
+                                    "",
+                                    "TASK: Extract ALL source code exactly as visible in the image.",
+                                    "",
+                                    "CRITICAL RULES:",
+                                    "1. Extract ONLY the code. Strip away terminal titlebars, OS window chrome, and status lines.",
+                                    "2. Strip line numbers at the start of lines (e.g., '000100', '1 |') so only the pure code remains.",
+                                    "3. For COBOL, JCL, and REXX, preserve proper keywords, indentation, and structure.",
+                                    "4. If multiple programs or routines appear, separate them with '--- CODE BLOCK ---'.",
+                                    "5. If there is NO computer code visible in this image, respond with ONLY: NO_CODE",
+                                    "6. Return ONLY the code. Do NOT add markdown code fences (```) or conversational text.",
+                                ].join("\n"),
+                            },
+                        ],
+                    },
+                ],
             });
-        }
 
-        return results;
-    } catch {
-        // If vision model fails or image is too large, return empty
-        return [];
+            if (!text || text.trim() === "NO_CODE" || text.trim().length < 10) {
+                return [];
+            }
+
+            // Split by separator if multiple blocks
+            const rawBlocks = text.split(/---\s*CODE BLOCK\s*---/i);
+            const results: ExtractedCodeBlock[] = [];
+
+            let idx = blockStartIndex;
+            for (const rawCode of rawBlocks) {
+                const code = rawCode.replace(/```[a-z]*\n?/gi, "").replace(/```/g, "").trim();
+                if (code.length < 10) continue;
+                results.push({
+                    index: idx++,
+                    language: detectLanguageFromOcr(code),
+                    code,
+                    source: "ocr",
+                    pageNumber,
+                    contentHash: hashCode(code),
+                });
+            }
+
+            return results;
+        } catch {
+            if (attempt === maxRetries) {
+                return [];
+            }
+            // Small pause before retry
+            await new Promise((resolve) => setTimeout(resolve, 800));
+        }
     }
+    return [];
 }
 
 // ─── Deduplication ───────────────────────────────────────────────────────────
@@ -133,7 +144,7 @@ export interface CodeExtractionResult {
 /**
  * Extract all code blocks from a parsed document:
  * 1. Text-based blocks from the parser (already in ParsedDocument)
- * 2. OCR blocks from each embedded image (via AI vision)
+ * 2. OCR blocks from each embedded image (via AI vision with parallel batching)
  * 3. Deduplicate by content hash
  */
 export async function extractAllCodeBlocks(
@@ -146,10 +157,24 @@ export async function extractAllCodeBlocks(
     const images = parsedDoc.images;
     const total = images.length;
 
-    for (let i = 0; i < images.length; i++) {
-        onProgress?.(i + 1, total, `Image ${i + 1}/${total} (page ${images[i]!.pageNumber})`);
-        const extracted = await extractCodeFromImage(images[i]!, images[i]!.pageNumber, textBlocks.length + ocrBlocks.length);
-        ocrBlocks.push(...extracted);
+    // Process images in parallel batches of 3 to speed up extraction by 3x-4x
+    const BATCH_SIZE = 3;
+    let completedCount = 0;
+
+    for (let i = 0; i < images.length; i += BATCH_SIZE) {
+        const batch = images.slice(i, i + BATCH_SIZE);
+        const batchPromises = batch.map(async (img, offset) => {
+            const blockStart = textBlocks.length + ocrBlocks.length + offset * 5;
+            const extracted = await extractCodeFromImage(img, img.pageNumber, blockStart);
+            completedCount++;
+            onProgress?.(completedCount, total, `Image ${completedCount}/${total} (page ${img.pageNumber})`);
+            return extracted;
+        });
+
+        const batchResults = await Promise.all(batchPromises);
+        for (const res of batchResults) {
+            ocrBlocks.push(...res);
+        }
     }
 
     const combined = [...textBlocks, ...ocrBlocks];

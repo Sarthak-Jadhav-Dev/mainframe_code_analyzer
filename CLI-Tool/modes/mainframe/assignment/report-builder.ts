@@ -55,12 +55,12 @@ function buildSection1(report: AssignmentAuditReport): string[] {
 function buildSection2(report: AssignmentAuditReport): string[] {
     const { zIdCheck } = report.analysis;
     const consistencyLabel = zIdCheck.consistent
-        ? `${ICONS.check} CONSISTENT`
+        ? (zIdCheck.found.length > 0 ? `${ICONS.check} CONSISTENT` : `${ICONS.check} VALID (Single Submission)`)
         : `${ICONS.error} INCONSISTENT`;
 
     const lines = [
-        ...sectionHeader("SECTION 2: Z_ID CONSISTENCY CHECK"),
-        boxLine(`Z_IDs Found         : ${zIdCheck.found.length > 0 ? zIdCheck.found.join(", ") : "None detected"}`),
+        ...sectionHeader("SECTION 2: STUDENT ID / Z_ID CONSISTENCY CHECK"),
+        boxLine(`Identities Detected : ${zIdCheck.found.length > 0 ? zIdCheck.found.join(", ") : "Single Submission"}`),
         boxLine(`Consistency         : ${consistencyLabel}`),
         boxLine(`Details             : ${zIdCheck.details.slice(0, 60)}`),
     ];

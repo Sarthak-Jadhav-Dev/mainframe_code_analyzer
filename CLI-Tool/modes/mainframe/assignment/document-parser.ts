@@ -18,8 +18,9 @@ import path from "node:path";
 import crypto from "node:crypto";
 import type { ParsedDocument, ExtractedCodeBlock, ExtractedImage } from "./types.ts";
 
-// ─── Z_ID Pattern ─────────────────────────────────────────────────────────────
-const Z_ID_PATTERN = /\bZ[\s-]?[0-9]{7,10}\b/gi;
+// ─── Student ID Patterns ───────────────────────────────────────────────────────
+const IBM_Z_ID_PATTERN = /\bZ[\s-]?[0-9]{7,10}\b/gi;
+const ACADEMIC_ID_PATTERN = /\b(?:roll\s*(?:no|num)?|prn|seat\s*(?:no)?|student\s*id)[\s_.:#-]*([A-Z0-9_-]{3,20})\b/gi;
 
 // ─── Code Detection ───────────────────────────────────────────────────────────
 
@@ -27,21 +28,32 @@ const CODE_KEYWORD_PATTERNS = [
     /^(import |from |def |class |if __name__|async def )/m,
     /^(const |let |var |function |export |import |class |async function )/m,
     /^(public class |private |protected |void |int |String |#include )/m,
-    /^(IDENTIFICATION DIVISION|ENVIRONMENT DIVISION|DATA DIVISION|PROCEDURE DIVISION|WORKING-STORAGE|PERFORM |MOVE |DISPLAY )/im,
-    /^\/\/[A-Z][A-Z0-9]* +(JOB|EXEC|DD) /m,
+    /\b(IDENTIFICATION DIVISION|ENVIRONMENT DIVISION|DATA DIVISION|PROCEDURE DIVISION|WORKING-STORAGE|PERFORM |MOVE |DISPLAY )\b/im,
+    /\b(IF\s+.*\s+THEN|END-IF|PERFORM\s+.*UNTIL|EVALUATE|END-EVALUATE)\b/im,
+    /^\/\/[A-Z0-9$#@]+ +(JOB|EXEC|DD) /m,
     /^(\/\* REXX|say |do |end|if .* then|parse )/im,
-    /[{};=()]{3,}/,
+    /^(SELECT |INSERT INTO|UPDATE |DELETE FROM|CREATE TABLE )/im,
 ];
 
 function looksLikeCode(text: string): boolean {
-    if (text.length < 20) return false;
-    return CODE_KEYWORD_PATTERNS.some((re) => re.test(text));
+    if (text.length < 15) return false;
+    // Must match at least one genuine programming construct
+    if (CODE_KEYWORD_PATTERNS.some((re) => re.test(text))) return true;
+    
+    // Multi-line code with structural delimiters (semicolons/braces across lines)
+    const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+    if (lines.length >= 3) {
+        const structuralLines = lines.filter(l => /[;{}]$/.test(l) || /^(if|for|while|return|console\.)\b/i.test(l));
+        if (structuralLines.length >= 2) return true;
+    }
+
+    return false;
 }
 
 function detectLanguage(code: string): string {
     const upper = code.toUpperCase();
-    if (/^(IDENTIFICATION DIVISION|PROCEDURE DIVISION|DATA DIVISION)/m.test(upper)) return "COBOL";
-    if (/^\/\/[A-Z][A-Z0-9]* +(JOB|EXEC|DD)/m.test(upper)) return "JCL";
+    if (/IDENTIFICATION DIVISION|PROCEDURE DIVISION|DATA DIVISION|WORKING-STORAGE|PERFORM\s|DISPLAY\s/.test(upper)) return "COBOL";
+    if (/^\/\/[A-Z0-9$#@]+ +(JOB|EXEC|DD)/m.test(upper)) return "JCL";
     if (/^(\/\* REXX|SAY |PARSE |DO )/m.test(upper)) return "REXX";
     if (/^(def |class |import |from |print\()/m.test(code)) return "Python";
     if (/^(public class|private |protected |void main)/m.test(code)) return "Java";
@@ -67,16 +79,21 @@ function extractCodeBlocksFromText(text: string, pageNumber = 1): ExtractedCodeB
     while ((match = fenceRe.exec(text)) !== null) {
         const code = (match[1] ?? "").trim();
         if (code.length > 15 && looksLikeCode(code)) {
-            blocks.push({ index: blockIdx++, language: detectLanguage(code), code, source: "text", pageNumber, contentHash: hashCode(code) });
+            const lang = detectLanguage(code);
+            blocks.push({ index: blockIdx++, language: lang, code, source: "text", pageNumber, contentHash: hashCode(code) });
         }
     }
 
-    // Fallback: paragraph scanning
+    // Fallback: paragraph scanning — ONLY accept if language is recognized or has strong code syntax
     if (blocks.length === 0) {
         for (const para of text.split(/\n{2,}/)) {
             const trimmed = para.trim();
             if (trimmed.length > 20 && looksLikeCode(trimmed)) {
-                blocks.push({ index: blockIdx++, language: detectLanguage(trimmed), code: trimmed, source: "text", pageNumber, contentHash: hashCode(trimmed) });
+                const lang = detectLanguage(trimmed);
+                // Discard "Unknown" prose paragraphs that aren't real code
+                if (lang !== "Unknown") {
+                    blocks.push({ index: blockIdx++, language: lang, code: trimmed, source: "text", pageNumber, contentHash: hashCode(trimmed) });
+                }
             }
         }
     }
@@ -84,11 +101,31 @@ function extractCodeBlocksFromText(text: string, pageNumber = 1): ExtractedCodeB
     return blocks;
 }
 
-function extractZIds(text: string): string[] {
+function extractZIds(text: string, filePath = ""): string[] {
     const found = new Set<string>();
-    for (const m of text.matchAll(Z_ID_PATTERN)) {
+
+    // 1. IBM Z-ID format (e.g. Z12345678)
+    for (const m of text.matchAll(IBM_Z_ID_PATTERN)) {
         found.add(m[0].replace(/[\s-]/g, "").toUpperCase());
     }
+
+    // 2. Academic Student Roll / PRN from text
+    for (const m of text.matchAll(ACADEMIC_ID_PATTERN)) {
+        if (m[1] && m[1].length >= 3) {
+            found.add(m[1].toUpperCase());
+        }
+    }
+
+    // 3. Fallback: extract from document filename (e.g. TYCS-E-Sarthak_Jadhav)
+    if (found.size === 0 && filePath) {
+        const basename = path.basename(filePath, path.extname(filePath));
+        // Check for common student submission naming: e.g. TYCS-E-Name or RollNo-Name
+        const nameMatch = basename.match(/^([A-Z0-9]+-[A-Z0-9]+-[A-Za-z0-9_]+)/i);
+        if (nameMatch && nameMatch[1]) {
+            found.add(nameMatch[1]);
+        }
+    }
+
     return [...found];
 }
 
@@ -183,7 +220,7 @@ async function parsePdf(filePath: string): Promise<ParsedDocument> {
 
     // ── Extract text-based code blocks (may be empty if doc is all screenshots)
     const textCodeBlocks = extractCodeBlocksFromText(fullText, 1);
-    const zIds = extractZIds(fullText);
+    const zIds = extractZIds(fullText, filePath);
 
     return {
         filePath,
@@ -221,12 +258,15 @@ async function parseDocx(filePath: string): Promise<ParsedDocument> {
     while ((match = preRe.exec(html)) !== null) {
         const raw = match[1]!.replace(/<[^>]+>/g, "").trim();
         if (raw.length > 15 && looksLikeCode(raw)) {
-            preBlocks.push({ index: blockIdx++, language: detectLanguage(raw), code: raw, source: "text", pageNumber: 1, contentHash: hashCode(raw) });
+            const lang = detectLanguage(raw);
+            if (lang !== "Unknown") {
+                preBlocks.push({ index: blockIdx++, language: lang, code: raw, source: "text", pageNumber: 1, contentHash: hashCode(raw) });
+            }
         }
     }
 
     const textCodeBlocks = preBlocks.length > 0 ? preBlocks : extractCodeBlocksFromText(fullText, 1);
-    const zIds  = extractZIds(fullText);
+    const zIds  = extractZIds(fullText, filePath);
     const images: ExtractedImage[] = [];
 
     // Unpack embedded images from DOCX (it is a ZIP archive)
@@ -238,9 +278,14 @@ async function parseDocx(filePath: string): Promise<ParsedDocument> {
         for (const entry of zip.getEntries()) {
             const name = entry.entryName.toLowerCase();
             if (name.startsWith("word/media/") && /\.(png|jpg|jpeg|gif|bmp|tiff)$/.test(name)) {
+                const entryData = entry.getData();
+                // Filter out tiny icons, decorative dividers, and bullets (< 8KB)
+                if (entryData.length < 8192) {
+                    continue;
+                }
                 const ext      = path.extname(name).slice(1).toLowerCase();
                 const mimeType = ext === "jpg" ? "image/jpeg" : `image/${ext}`;
-                images.push({ pageNumber: Math.floor(imgIdx / 2) + 1, data: entry.getData().toString("base64"), mimeType });
+                images.push({ pageNumber: Math.floor(imgIdx / 2) + 1, data: entryData.toString("base64"), mimeType });
                 imgIdx++;
             }
         }
