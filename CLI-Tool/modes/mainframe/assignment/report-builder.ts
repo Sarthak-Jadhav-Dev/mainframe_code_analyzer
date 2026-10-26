@@ -36,7 +36,7 @@ function sectionHeader(title: string): string[] {
 
 function buildSection1(report: AssignmentAuditReport): string[] {
     const { analysis } = report;
-    const { completionVerdict, problemStatementMatchPercent, requirementsMet, requirementsTotal } = analysis;
+    const { completionVerdict, problemStatementMatchPercent, plagiarismPercentage, requirementsMet, requirementsTotal } = analysis;
 
     const verdictIcon =
         completionVerdict === "COMPLETED" ? `${ICONS.check} COMPLETED` :
@@ -47,6 +47,7 @@ function buildSection1(report: AssignmentAuditReport): string[] {
         ...sectionHeader("SECTION 1: ASSIGNMENT COMPLETION STATUS"),
         boxLine(`Verdict             : ${verdictIcon}`),
         boxLine(`Problem Match       : ${problemStatementMatchPercent}%`),
+        boxLine(`Plagiarism Check    : ${plagiarismPercentage !== undefined ? plagiarismPercentage + "%" : "0%"}`),
         boxLine(`Requirements Met    : ${requirementsMet} / ${requirementsTotal}`),
         BOX_BOT,
     ];

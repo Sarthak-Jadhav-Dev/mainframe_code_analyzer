@@ -47,6 +47,7 @@ export function checkZIdConsistency(zIds: string[]): ZIdCheckResult {
 interface AiAssignmentAnalysis {
     completionVerdict: CompletionVerdict;
     problemStatementMatchPercent: number;
+    plagiarismPercentage?: number;
     requirementsMet: number;
     requirementsTotal: number;
     overallOptimizationGrade: string;
@@ -89,6 +90,7 @@ function buildFallbackAnalysis(
         return {
             completionVerdict: "INCOMPLETE",
             problemStatementMatchPercent: 0,
+            plagiarismPercentage: 0,
             requirementsMet: 0,
             requirementsTotal: 3,
             overallOptimizationGrade: "F",
@@ -138,6 +140,7 @@ function buildFallbackAnalysis(
     return {
         completionVerdict: verdict,
         problemStatementMatchPercent: matchPercent,
+        plagiarismPercentage: 0,
         requirementsMet: verdict === "COMPLETED" ? 3 : 2,
         requirementsTotal: 3,
         overallOptimizationGrade: grade,
@@ -195,13 +198,15 @@ async function runAiAnalysis(
         "1. Check if the code addresses the core requirements of the Problem Statement (e.g., if it asks for IF-ELSE conditions or loops, check if they exist).",
         "2. If the student implemented the requested logic correctly, award 'COMPLETED' and a high match percent (80-100%).",
         "3. Do not penalize standard academic assignments for lacking enterprise boilerplate if the logic is correct.",
-        "4. Respond with ONLY a valid JSON object matching this structure:",
+        "4. Plagiarism Check: Analyze if code blocks are copied from each other or from common sources. Respond with plagiarismPercentage: number (0-100) where 0 = completely original, 100 = nearly identical copy.",
+        "5. Respond with ONLY a valid JSON object matching this structure:",
         "",
         "```json",
         JSON.stringify(
             {
                 completionVerdict: "COMPLETED | PARTIALLY_COMPLETED | INCOMPLETE",
                 problemStatementMatchPercent: 95,
+                plagiarismPercentage: 15,
                 requirementsMet: 3,
                 requirementsTotal: 3,
                 overallOptimizationGrade: "A",
@@ -245,6 +250,7 @@ async function runAiAnalysis(
                 return {
                     completionVerdict: (parsed.completionVerdict as CompletionVerdict) || "COMPLETED",
                     problemStatementMatchPercent: Number(parsed.problemStatementMatchPercent) || 85,
+                    plagiarismPercentage: typeof parsed.plagiarismPercentage === "number" ? parsed.plagiarismPercentage : (Number(parsed.plagiarismPercentage) || 0),
                     requirementsMet: Number(parsed.requirementsMet) || 3,
                     requirementsTotal: Number(parsed.requirementsTotal) || 3,
                     overallOptimizationGrade: String(parsed.overallOptimizationGrade || "A"),
@@ -284,6 +290,7 @@ export async function analyzeAssignment(
     return {
         completionVerdict: aiResult.completionVerdict,
         problemStatementMatchPercent: aiResult.problemStatementMatchPercent,
+        plagiarismPercentage: aiResult.plagiarismPercentage ?? 0,
         requirementsMet: aiResult.requirementsMet,
         requirementsTotal: aiResult.requirementsTotal,
         zIdCheck,

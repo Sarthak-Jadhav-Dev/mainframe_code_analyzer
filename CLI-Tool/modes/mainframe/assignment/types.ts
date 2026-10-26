@@ -97,6 +97,8 @@ export interface AssignmentAnalysisResult {
     completionVerdict: CompletionVerdict;
     /** How well the code matches the problem statement (0–100) */
     problemStatementMatchPercent: number;
+    /** Plagiarism percentage detected (0–100), 0 = original, 100 = copied */
+    plagiarismPercentage?: number;
     /** Number of requirements that appear to be met */
     requirementsMet: number;
     /** Total number of requirements inferred from problem statement */
