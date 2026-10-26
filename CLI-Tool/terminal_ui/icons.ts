@@ -22,6 +22,7 @@ export const isModernTerminal = Boolean(
 export const ICONS = isModernTerminal
     ? {
           mainframe: "🖥️ ",
+          assignment: "📋",
           search: "🔍",
           stats: "📊",
           exit: "🚪",
@@ -36,6 +37,7 @@ export const ICONS = isModernTerminal
       }
     : {
           mainframe: "[HOST] ",
+          assignment: "[ASGN] ",
           search: "[ASK] ",
           stats: "[STATS]",
           exit: "[EXIT] ",

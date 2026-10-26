@@ -47,6 +47,7 @@ import { defaultMainframeConfig } from "./types.ts";
 import type { ScanResult, UsageType, MainframeConfig } from "./types.ts";
 import { renderTerminalMarkdown } from "../../terminal_ui/terminal_md.ts";
 import { ICONS } from "../../terminal_ui/icons.ts";
+import { runAssignmentMode } from "./assignment/orchestrator.ts";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -477,6 +478,25 @@ async function runHerculesPipeline(
 
 export async function runMainframeMode(): Promise<void> {
     printHeader();
+
+    // ── Sub-mode selection ───────────────────────────────────────────────
+    const subMode = await select({
+        message: BOLD("Select Mainframe Mode:"),
+        options: [
+            { value: "codebase", label: `${ICONS.mainframe} Codebase Audit - Scan a code repository via TK5 pipeline` },
+            { value: "assignment", label: `${ICONS.assignment} Assignment Audit - Evaluate a PDF/DOCX student submission` },
+        ],
+    });
+
+    if (isCancel(subMode)) {
+        info("Cancelled.");
+        return;
+    }
+
+    if (subMode === "assignment") {
+        await runAssignmentMode();
+        return;
+    }
 
     // ── Step 1: Get repository path ─────────────────────────────────────
     step(1, "Select Repository to Audit");

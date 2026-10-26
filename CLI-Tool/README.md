@@ -61,23 +61,25 @@ Think of it as an autonomous developer that lives inside your project, accessibl
 <tr>
 <td width="50%">
 
-### 🧠 Agent Mode
-Give Inspectra a task and it autonomously:
-- Reads and understands your codebase
-- Creates, modifies, and deletes files
-- Executes shell commands
-- Searches glob patterns across the project
-- **Requires your approval** before applying any change
+### 🖥️ Mainframe Codebase Audit
+Deep enterprise authenticity verification:
+- AST & regex scanner across 40+ technologies
+- AI heuristic pass (genuine vs. pseudo framework usage)
+- Fixed-width 80-byte card serialization (RECFM=FB)
+- Real Hercules TK5 MVS batch pipeline (JCL SORT, COBOL match-merge, REXX deduplication, integrity check)
+- Generates normal & AI-enhanced executive audit reports
 
 </td>
 <td width="50%">
 
-### 🗺️ Plan Mode
-Not sure where to start? Inspectra will:
-- Research your codebase & the web (if Firecrawl is configured)
-- Generate a step-by-step plan (1–15 steps)
-- Let you toggle which steps to include
-- Execute the selected steps sequentially
+### 📋 Student Assignment Audit
+Automated grading & document evaluation:
+- Ingests **PDF** and **Word (DOCX)** submissions
+- High-res page rendering via `@napi-rs/canvas` (144 DPI)
+- AI Vision OCR to extract code from screenshots
+- Multi-page student `Z_ID` consistency checks
+- Code optimization grading & pedagogical suggestions
+- TK5 verification & 5-section boxed report export
 
 </td>
 </tr>
@@ -85,21 +87,17 @@ Not sure where to start? Inspectra will:
 <td width="50%">
 
 ### 🔍 Ask Mode
-Ask any question about your codebase:
+Interactive codebase question answering:
 - Read-only — never mutates files
-- Web search support (optional)
-- Optionally saves answers as `.md` files
+- Deep semantic understanding of project architecture
 - Great for onboarding and code exploration
 
 </td>
 <td width="50%">
 
-### 📱 Telegram Mode
-Control everything remotely via Telegram:
-- `/agent <task>` — run an agent task
-- `/ask <question>` — ask about your codebase
-- `/plan <goal>` — generate and execute a plan
-- Interactive approval buttons for file changes
+### 📊 Stats & 📱 Telegram Modes
+- **Stats**: Live OpenRouter token usage, credit consumption, and cost tracking
+- **Telegram**: Remote control and notifications via Telegram bot (`/audit`, `/ask`, `/start`)
 
 </td>
 </tr>
@@ -110,7 +108,7 @@ Control everything remotely via Telegram:
 ## 🏗️ Architecture
 
 ```
-inspectra wakeup
+bun run index.ts wakeup
        │
        ▼
   ┌─────────────────────────┐
@@ -124,20 +122,20 @@ inspectra wakeup
   │  Mode   │     │     Mode      │
   └────┬────┘     └──────┬────────┘
        │                 │
-  ┌────┴──────────────────┴────┐
-  │        Core Modes          │
+  ┌────┴──────────────────┴───────────────────────────────────────┐
+  │                          Core Modes                           │
+  ├───────────────────────────────────────────────────────────────┤
+  │  🖥️ Mainframe Mode                                            │
+  │     ├── 📁 Codebase Audit   (AST + AI + TK5 MVS Batch)        │
+  │     └── 📋 Assignment Audit (PDF/DOCX/OCR + AI + TK5 MVS)     │
+  │  🔍 Ask Mode                 (Read-only Code Q&A)             │
+  │  📊 Stats Mode               (OpenRouter Usage & Analytics)   │
+  └───────────────────────────────────────────────────────────────┘
+               │
+  ┌────────────▼───────────────┐
+  │  OpenRouter / AI SDK       │  ← LLMs & AI Vision OCR
   ├────────────────────────────┤
-  │  🧠 Agent  │  🗺️ Plan      │
-  │  🔍 Ask    │               │
-  └────────────────────────────┘
-               │
-  ┌────────────▼───────────────┐
-  │        ToolExecutor        │  ← Staged file mutations
-  │   + ActionTracker          │  ← Approval tracking
-  └────────────────────────────┘
-               │
-  ┌────────────▼───────────────┐
-  │     OpenRouter / AI SDK    │  ← Any LLM via OpenRouter
+  │  Hercules TK5 (Port 3505)  │  ← MVS 3.8j Batch Pipeline
   └────────────────────────────┘
 ```
 
@@ -227,126 +225,86 @@ After selecting **CLI**, you get an interactive menu:
 
 ```
 ? What do you want to do?
-  ❯ Agent
-    Plan
-    Ask
-    Exit
+  ❯ 🔍 Ask       - read-only Q&A about codebase
+    📊 Stats     - OpenRouter API key usage
+    🖥️ Mainframe - codebase & assignment audit via Hercules TK5
+    ❌ Exit
 ```
 
-#### 🧠 Agent
-```
-? What would you like the agent to do?
-> Add error handling to all async functions in src/
-```
-The agent will autonomously work through the task, show you every action it takes (✓ read_file, ✓ modify_tool…), then present a **diff for your approval** before writing anything to disk.
+#### 🖥️ Mainframe Mode (Sub-Modes)
+When selecting **Mainframe**, choose between:
+1. **`🖥️ Codebase Audit`**: Audits a repository folder. Scans 40+ technologies, runs an AI authenticity pass (genuine vs. pseudo usage), serializes into 80-byte FB card records, and streams through the Hercules TK5 MVS batch pipeline (JCL SORT, COBOL match-merge, REXX deduplication, Step 4 Integrity).
+2. **`📋 Assignment Audit`**: Evaluates a student assignment submission (`.pdf` or `.docx`). Renders pages via `@napi-rs/canvas`, extracts code from terminal/IDE screenshots using AI Vision OCR, runs student `Z_ID` consistency checks across all pages, evaluates code against the problem statement, and generates a 5-section boxed report.
 
-#### 🗺️ Plan
-```
-? What is your goal?
-> Refactor the authentication system to use JWT
-```
-Inspectra researches your codebase, generates a plan, lets you **toggle steps on/off**, then executes the selected ones.
-
-#### 🔍 Ask
+#### 🔍 Ask Mode
 ```
 ? What would you like to know about the codebase?
-> How does the approval flow work?
+> How does the 80-byte FB card serialization work?
 ```
-Get a detailed answer. Optionally save it as a `.md` file.
+Get a detailed answer with architecture and code references.
+
+#### 📊 Stats Mode
+Inspect real-time OpenRouter token usage, credit balance, and API expenditures.
 
 ---
 
 ### Telegram Mode
 
-Start `inspectra wakeup`, select **Telegram**, and the bot comes online.
+Start `bun run index.ts wakeup`, select **Telegram**, and the bot comes online for remote auditing and notifications:
 
 | Command | Description |
 |---------|-------------|
-| `/start` | Shows the welcome message |
-| `/agent <task>` | Runs the AI agent on a task |
+| `/start` | Shows the welcome message & instructions |
+| `/audit` | Triggers a mainframe audit on the workspace |
 | `/ask <question>` | Asks a question about the codebase |
-| `/plan <goal>` | Generates an interactive execution plan |
-
-#### Approval Flow (Telegram)
-
-When the agent proposes file changes, you receive an interactive message with buttons:
-
-```
-📝 1 pending change(s) require your approval.
-
-[📄 View Diff]   [✅ Accept All]   [❌ Reject All]
-```
 
 > **Security:** Only messages from `TELEGRAM_OWNER_ID` are processed. All other users are silently ignored.
-
----
-
-## 🤖 Agent Tools
-
-The agent has access to these tools (with configurable permissions per mode):
-
-| Tool | Description | Mutates? |
-|------|-------------|----------|
-| `read_file` | Read any file in the workspace | ❌ |
-| `list_files` | List files & directories | ❌ |
-| `search_files` | Glob pattern search with optional content filter | ❌ |
-| `analyze_codebase` | Get file counts, sizes, extensions summary | ❌ |
-| `list_skills` | List SKILL.md files (Cursor/Claude rules) | ❌ |
-| `read_skill` | Read a specific SKILL.md | ❌ |
-| `create_file` | Create a new file (staged, needs approval) | ✅ |
-| `modify_tool` | Modify an existing file (staged, needs approval) | ✅ |
-| `delete_file` | Delete a file (staged, needs approval) | ✅ |
-| `create_folder` | Create a directory tree (staged, needs approval) | ✅ |
-| `execute_shell` | Queue a shell command (staged, needs approval) | ✅ |
-| `web_search` | Search the web via Firecrawl *(optional)* | ❌ |
-
-> **Staged mutations:** All ✅ tools write to a staging area first. Nothing touches your disk until you explicitly approve.
 
 ---
 
 ## 📁 Project Structure
 
 ```
-Inspectra/
+CLI-Tool/
 ├── index.ts                    # CLI entry point (Commander)
-├── .env                        # Your secrets (never committed)
+├── .env                        # OpenRouter & Telegram secrets
 │
 ├── ai/
-│   ├── ai.config.ts            # OpenRouter model setup
+│   ├── ai.config.ts            # OpenRouter model config
 │   └── index.ts
 │
 ├── terminal_ui/
-│   ├── wakeup.ts               # Mode selector & ASCII banner
+│   ├── wakeup.ts               # Startup banner & mode selector
+│   ├── icons.ts                # Terminal icons & unicode fallbacks
 │   └── terminal_md.ts          # Markdown renderer for terminal
 │
 └── modes/
     ├── cli.ts                  # CLI mode menu loop
     │
-    ├── agents/                 # Core agent engine
-    │   ├── agent-tools.ts      # Tool definitions
-    │   ├── tool-executor.ts    # Staged file I/O
-    │   ├── action_tracker.ts   # Approval state machine
-    │   ├── approval.ts         # CLI approval flow
-    │   ├── orcharstrator.ts    # Agent mode entry
-    │   └── types.ts            # Types & default config
+    ├── mainframe/              # Mainframe batch auditor engine
+    │   ├── assignment/         # 📋 Student Assignment Audit Engine
+    │   │   ├── assignment-analyzer.ts # Completion, Z_ID, optimization AI
+    │   │   ├── code-extractor.ts # AI Vision OCR from screenshots
+    │   │   ├── document-parser.ts # PDF page rendering & DOCX unpacker
+    │   │   ├── orchestrator.ts    # Assignment mode pipeline orchestrator
+    │   │   ├── report-builder.ts  # 5-section boxed report generator & export
+    │   │   └── types.ts           # Types & schemas
+    │   ├── flat-file-writer.ts # 80-byte card serializer (RECFM=FB)
+    │   ├── hercules-client.ts  # Hercules TCP 3505 & HTTP 8038 driver
+    │   ├── jcl-templates.ts    # JCL generator (SORT, COBOL, REXX, Integrity)
+    │   ├── orcharstrator.ts    # Mainframe audit orchestrator & sub-mode router
+    │   ├── partitioner.ts      # AI-powered audit scope partitioner
+    │   ├── scanner.ts          # Fast AST & regex tech detector (40+ libs)
+    │   └── types.ts            # Mainframe interfaces
     │
     ├── ask/
-    │   └── orcharstrator.ts    # Ask mode (read-only agent)
+    │   └── orcharstrator.ts    # Read-only code Q&A
     │
-    ├── plan/
-    │   ├── planner.ts          # Plan generation (JSON schema output)
-    │   ├── web-tools.ts        # Firecrawl tools
-    │   └── types.ts
+    ├── stats/
+    │   └── orcharstrator.ts    # OpenRouter token usage & analytics
     │
     └── telegram/
-        ├── index.ts            # Bot setup & launch
-        ├── handlers.ts         # Command & action handlers
-        ├── agent-run.ts        # Telegram agent/ask/plan runners
-        ├── approval-session.ts # Per-chat approval state
-        ├── plan-session.ts     # Per-chat plan state & keyboard
-        ├── auth.ts             # Owner ID guard
-        ├── constants.ts        # WELCOME message
-        └── text.ts             # Markdown helpers
+        └── index.ts            # Telegram bot integration
 ```
 
 ---
@@ -355,16 +313,18 @@ Inspectra/
 
 | Technology | Purpose |
 |------------|---------|
-| **[Bun](https://bun.sh)** | Runtime, package manager, TypeScript execution |
-| **[Vercel AI SDK](https://sdk.vercel.ai)** | `ToolLoopAgent`, `generateText`, tool primitives |
-| **[OpenRouter](https://openrouter.ai)** | LLM gateway — supports 100+ models |
+| **[Bun](https://bun.sh)** | High-speed JavaScript/TypeScript runtime & package manager |
+| **[Vercel AI SDK](https://sdk.vercel.ai)** | `generateText`, model primitives, and structured AI calls |
+| **[OpenRouter](https://openrouter.ai)** | Unified gateway for LLMs and AI Vision models |
+| **[@napi-rs/canvas](https://github.com/Brooooooklyn/canvas)** | High-performance prebuilt canvas for rendering PDF pages to PNG (no C++ build tools needed) |
+| **[pdfjs-dist](https://mozilla.github.io/pdf.js/)** | Mozilla PDF parsing and page-to-canvas rendering engine |
+| **[pdf-parse](https://www.npmjs.com/package/pdf-parse)** | High-speed PDF text extraction |
+| **[mammoth](https://www.npmjs.com/package/mammoth)** | DOCX document and HTML converter |
+| **[adm-zip](https://www.npmjs.com/package/adm-zip)** | ZIP archive extraction for embedded DOCX screenshots |
 | **[Telegraf](https://telegraf.js.org)** | Telegram bot framework |
 | **[Commander.js](https://github.com/tj/commander.js)** | CLI argument/subcommand parsing |
-| **[@clack/prompts](https://github.com/bombshell-dev/clack)** | Beautiful interactive terminal UI |
-| **[Firecrawl](https://firecrawl.dev)** | Web scraping & search for Plan/Ask modes |
-| **[Figlet](https://github.com/patorjk/figlet.js)** | ASCII art banner |
-| **[Chalk](https://github.com/chalk/chalk)** | Terminal colors |
-| **[Zod](https://zod.dev)** | Schema validation for tool inputs & plan output |
+| **[@clack/prompts](https://github.com/bombshell-dev/clack)** | Interactive terminal UI prompts & spinners |
+| **[Chalk](https://github.com/chalk/chalk)** | Terminal colors & ANSI styling |
 
 ---
 
