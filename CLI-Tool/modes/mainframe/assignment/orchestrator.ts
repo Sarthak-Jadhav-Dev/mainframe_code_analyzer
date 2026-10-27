@@ -22,7 +22,7 @@ import { text, select, spinner, isCancel } from "@clack/prompts";
 import { parseDocument, canRenderPdfPages, SUPPORTED_EXTENSIONS } from "./document-parser.ts";
 import { extractAllCodeBlocks } from "./code-extractor.ts";
 import { analyzeAssignment } from "./assignment-analyzer.ts";
-import { buildAssignmentReport, saveReportToFile } from "./report-builder.ts";
+import { buildAssignmentReport, saveReportToFile, displayAssignmentReportTerminal } from "./report-builder.ts";
 import { checkHerculesConnectivity, submitJcl, pollJobUntilComplete } from "../hercules-client.ts";
 import {
     buildUploadJcl,
@@ -36,6 +36,7 @@ import {
 } from "../jcl-templates.ts";
 import { defaultMainframeConfig } from "../types.ts";
 import { ICONS } from "../../../terminal_ui/icons.ts";
+import { saveExecutionRecord } from "../database/index.ts";
 import type { AssignmentAuditReport, AssignmentFlatRecord, TK5StageResult, TK5VerificationResult, ExtractedCodeBlock } from "./types.ts";
 
 // ─── Color Helpers ────────────────────────────────────────────────────────────
@@ -524,12 +525,88 @@ export async function runAssignmentMode(): Promise<void> {
 
     const reportText = buildAssignmentReport(auditReport);
 
-    console.log();
-    console.log(PURPLE.bold("═".repeat(62)));
-    console.log(CYAN.bold("  ASSIGNMENT AUDIT COMPLETE"));
-    console.log(PURPLE.bold("═".repeat(62)));
-    console.log();
-    console.log(reportText);
+    displayAssignmentReportTerminal(auditReport);
+
+    // ── Save to VSAM Database ───────────────────────────────────────────
+    const dbSpinner = spinner();
+    dbSpinner.start("Recording assignment execution into VSAM database (HERC01.AUDIT.HIST.KSDS)…");
+    try {
+        const isHerculesLive = tk5Result.stages.some((s) => s.status === "PASS");
+        const allPassed = tk5Result.stages.every((s) => s.status === "PASS" || s.status === "SIMULATED");
+        const hasFail = tk5Result.stages.some((s) => s.status === "FAIL");
+        const statusVal = hasFail ? "FAIL" : (isHerculesLive ? "PASS" : "SIMULATED");
+        const retCodeVal = allPassed ? "RC=0000" : "RC=0012";
+
+        const dbRes = await saveExecutionRecord(
+            {
+                executionType: "ASSIGNMENT",
+                targetName: path.basename(docPath),
+                targetPath: docPath,
+                scopeOrZId: parsedDoc.zIds.join(", ") || "N/A",
+                verdict: analysisResult.completionVerdict,
+                grade: analysisResult.overallOptimizationGrade,
+                primaryScore: analysisResult.problemStatementMatchPercent,
+                recordCount: codeExtractionResult.allBlocks.length,
+                returnCode: retCodeVal,
+                status: statusVal as any,
+                mode: isHerculesLive ? "HERCULES_TK5" : "SIMULATED",
+                telemetry: {
+                    jobNames: {
+                        upload: "ASUP1000",
+                        sort: "ASSO1000",
+                        cobol: "ASCO1000",
+                        rexx: "ASRX1000",
+                        integrity: "ASIT1000",
+                    },
+                    datasetNames: {
+                        final: "HERC01.AUDIT.FINAL",
+                    },
+                    stages: tk5Result.stages.map((s) => ({
+                        stage: s.stage,
+                        returnCode: String(s.returnCode),
+                        status: s.status as any,
+                        details: s.details,
+                    })),
+                    integrityVerified: tk5Result.integrityVerified,
+                    isFailureTest: false,
+                },
+                assignmentDetails: {
+                    fileType: parsedDoc.fileType,
+                    pageCount: parsedDoc.pageCount,
+                    problemStatement,
+                    detectedZIds: parsedDoc.zIds,
+                    zIdConsistent: analysisResult.zIdCheck.consistent,
+                    requirementsMet: analysisResult.requirementsMet,
+                    requirementsTotal: analysisResult.requirementsTotal,
+                    totalCodeBlocks: codeExtractionResult.allBlocks.length,
+                    textBlocks: codeExtractionResult.textBlocks.length,
+                    ocrBlocks: codeExtractionResult.ocrBlocks.length,
+                    overallOptimizationGrade: analysisResult.overallOptimizationGrade,
+                    suggestions: analysisResult.suggestions.map((s: any) =>
+                        typeof s === "string" ? s : (s.suggestion || s.title || s.description || JSON.stringify(s))
+                    ),
+                    codeBlocks: codeExtractionResult.allBlocks.map((b, i) => ({
+                        label: `BLOCK_${i + 1}`,
+                        language: b.language,
+                        source: b.source,
+                        lines: b.code.split("\n").length,
+                        hash: b.contentHash,
+                    })),
+                },
+                reportContent: reportText,
+            },
+            isHerculesLive,
+        );
+        dbSpinner.stop();
+        if (dbRes.herculesSynced) {
+            success(`Execution saved to VSAM database & Synced to Hercules TK5 Cluster: HERC01.AUDIT.HIST.KSDS (Key: ${dbRes.record.id})`);
+        } else {
+            success(`Execution saved to VSAM database (Key: ${dbRes.record.id})`);
+        }
+    } catch (err) {
+        dbSpinner.stop();
+        warn(`VSAM save warning: ${err instanceof Error ? err.message : String(err)}`);
+    }
 
     // ── Step 8: Offer Save ────────────────────────────────────────────────
     const saveChoice = await select({

@@ -23,6 +23,7 @@ export const ICONS = isModernTerminal
     ? {
           mainframe: "🖥️ ",
           assignment: "📋",
+          database: "🗄️ ",
           search: "🔍",
           stats: "📊",
           exit: "🚪",
@@ -38,6 +39,7 @@ export const ICONS = isModernTerminal
     : {
           mainframe: "[HOST] ",
           assignment: "[ASGN] ",
+          database: "[DB] ",
           search: "[ASK] ",
           stats: "[STATS]",
           exit: "[EXIT] ",

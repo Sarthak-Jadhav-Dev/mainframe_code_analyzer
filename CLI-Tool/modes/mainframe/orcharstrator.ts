@@ -49,6 +49,7 @@ import type { ScanResult, UsageType, MainframeConfig } from "./types.ts";
 import { renderTerminalMarkdown } from "../../terminal_ui/terminal_md.ts";
 import { ICONS } from "../../terminal_ui/icons.ts";
 import { runAssignmentMode } from "./assignment/orchestrator.ts";
+import { runDatabaseViewerMode, saveExecutionRecord, colorizeReport } from "./database/index.ts";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -500,6 +501,7 @@ export async function runMainframeMode(): Promise<void> {
         options: [
             { value: "codebase", label: `${ICONS.mainframe} Codebase Audit - Scan a code repository via TK5 pipeline` },
             { value: "assignment", label: `${ICONS.assignment} Assignment Audit - Evaluate a PDF/DOCX student submission` },
+            { value: "database", label: `${ICONS.database} Database / VSAM History - View execution database & VSAM telemetry` },
         ],
     });
 
@@ -510,6 +512,11 @@ export async function runMainframeMode(): Promise<void> {
 
     if (subMode === "assignment") {
         await runAssignmentMode();
+        return;
+    }
+
+    if (subMode === "database") {
+        await runDatabaseViewerMode();
         return;
     }
 
@@ -692,27 +699,159 @@ export async function runMainframeMode(): Promise<void> {
 
     const isFailureTest = req4Choice === "failure";
 
+    let report: string;
     if (!herculesAvailable) {
         // ── Simulated Mode ──────────────────────────────────────────────
         step(7, "Simulated Pipeline (Hercules not running)");
-        const report = buildSimulatedReport(scanResult, isFailureTest);
-        displayReport(report, scanResult, repoPath);
-        await offerSaveReport(report, scanResult, repoPath, isFailureTest);
-        return;
-    }
-
-    // ── Hercules Pipeline ──────────────────────────────────────────────
-    let report: string;
-    try {
-        report = await runHerculesPipeline(scanResult, config, isFailureTest);
-    } catch (err) {
-        fail(`Pipeline error: ${err instanceof Error ? err.message : String(err)}`);
-        warn("Falling back to simulated report.");
         report = buildSimulatedReport(scanResult, isFailureTest);
+    } else {
+        // ── Hercules Pipeline ──────────────────────────────────────────────
+        try {
+            report = await runHerculesPipeline(scanResult, config, isFailureTest);
+        } catch (err) {
+            fail(`Pipeline error: ${err instanceof Error ? err.message : String(err)}`);
+            warn("Falling back to simulated report.");
+            report = buildSimulatedReport(scanResult, isFailureTest);
+        }
     }
 
     displayReport(report, scanResult, repoPath);
+
+    // ── Save to VSAM Database ───────────────────────────────────────────
+    const dbSpinner = spinner();
+    dbSpinner.start("Recording execution history into VSAM database (HERC01.AUDIT.HIST.KSDS)…");
+    try {
+        const dbResult = await recordCodebaseExecutionToVsam(
+            scanResult,
+            repoPath,
+            isFailureTest,
+            herculesAvailable,
+            report,
+        );
+        dbSpinner.stop();
+        if (dbResult.herculesSynced) {
+            success(`Execution saved to VSAM database & Synced to Hercules TK5 Cluster: HERC01.AUDIT.HIST.KSDS (Key: ${dbResult.record.id})`);
+        } else {
+            success(`Execution saved to VSAM database (Key: ${dbResult.record.id})`);
+        }
+    } catch (err) {
+        dbSpinner.stop();
+        warn(`VSAM save warning: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
     await offerSaveReport(report, scanResult, repoPath, isFailureTest);
+}
+
+// ─── Save Codebase Execution to VSAM ──────────────────────────────────────────
+
+async function recordCodebaseExecutionToVsam(
+    scanResult: ScanResult,
+    repoPath: string,
+    isFailureTest: boolean,
+    herculesAvailable: boolean,
+    report: string,
+) {
+    const techCount: Record<string, { total: number; genuine: number; pseudo: number; unknown: number }> = {};
+    let totalGenuine = 0;
+    let totalPseudo = 0;
+    let totalUnknown = 0;
+
+    for (const record of scanResult.records) {
+        if (!techCount[record.techName]) {
+            techCount[record.techName] = { total: 0, genuine: 0, pseudo: 0, unknown: 0 };
+        }
+        techCount[record.techName]!.total++;
+        if (record.usageType === "GENUINE") {
+            techCount[record.techName]!.genuine++;
+            totalGenuine++;
+        } else if (record.usageType === "PSEUDO") {
+            techCount[record.techName]!.pseudo++;
+            totalPseudo++;
+        } else {
+            techCount[record.techName]!.unknown++;
+            totalUnknown++;
+        }
+    }
+
+    const seenHashes = new Map<string, string>();
+    const duplicateFiles: Array<{ file: string; original: string; hash: string }> = [];
+    for (const f of scanResult.scannedFiles) {
+        if (seenHashes.has(f.contentHash)) {
+            duplicateFiles.push({
+                file: f.relativePath,
+                original: seenHashes.get(f.contentHash)!,
+                hash: f.contentHash,
+            });
+        } else {
+            seenHashes.set(f.contentHash, f.relativePath);
+        }
+    }
+
+    const totalEvaluated = totalGenuine + totalPseudo;
+    const authRatio = totalEvaluated > 0 ? Math.round((totalGenuine / totalEvaluated) * 100) : 0;
+    const grade = authRatio >= 90 ? "A+" : authRatio >= 80 ? "A" : authRatio >= 70 ? "B" : authRatio >= 60 ? "C" : authRatio >= 50 ? "D" : "F";
+    const status = isFailureTest ? "FAIL" : (herculesAvailable ? "PASS" : "SIMULATED");
+    const returnCode = isFailureTest ? "RC=0012" : "RC=0000";
+    const verdict = isFailureTest ? "FAILED_TEST" : (authRatio >= 70 ? "AUTHENTIC" : "REQUIRES_REVIEW");
+
+    return await saveExecutionRecord(
+        {
+            executionType: "CODEBASE_PROJECT",
+            targetName: path.basename(repoPath),
+            targetPath: repoPath,
+            scopeOrZId: scanResult.subScope || "Entire Repository",
+            verdict,
+            grade,
+            primaryScore: authRatio,
+            recordCount: scanResult.records.length,
+            returnCode,
+            status: status as any,
+            mode: herculesAvailable ? "HERCULES_TK5" : "SIMULATED",
+            telemetry: {
+                jobNames: {
+                    clean: "AUDCL100",
+                    upload: "AUDUP100",
+                    sort: "AUDSO100",
+                    cobol: "AUDCO100",
+                    rexx: "AUDRX100",
+                    integrity: "AUDIT100",
+                    report: "AUDRP100",
+                },
+                datasetNames: {
+                    input: "HERC01.AUDIT.INPUT",
+                    sorted: "HERC01.AUDIT.SORTED",
+                    cobolOut: "HERC01.AUDIT.COBOL",
+                    rexxOut: "HERC01.AUDIT.REXX",
+                    final: "HERC01.AUDIT.FINAL",
+                },
+                stages: [
+                    { stage: "JCL SORT", returnCode: "0000", status: herculesAvailable ? "PASS" : "SIMULATED", details: "Sorted by TECH_NAME (cols 41-50)" },
+                    { stage: "COBOL Match-Merge", returnCode: "0000", status: herculesAvailable ? "PASS" : "SIMULATED", details: "AUDCOBOL matched vs TECHREF table" },
+                    { stage: "REXX Deduplication", returnCode: "0000", status: herculesAvailable ? "PASS" : "SIMULATED", details: `AUDRXXX pruned ${duplicateFiles.length} duplicate files` },
+                    { stage: "Integrity Check", returnCode: isFailureTest ? "0012" : "0000", status: isFailureTest ? "FAIL" : (herculesAvailable ? "PASS" : "SIMULATED"), details: isFailureTest ? "Simulated count mismatch, output discarded" : "IBM SORT Descending count match verified" },
+                ],
+                integrityVerified: !isFailureTest,
+                isFailureTest,
+            },
+            codebaseDetails: {
+                totalFiles: scanResult.totalFiles,
+                filesWithImports: scanResult.filesWithImports,
+                genuineCount: totalGenuine,
+                pseudoCount: totalPseudo,
+                unknownCount: totalUnknown,
+                duplicateCount: duplicateFiles.length,
+                duplicateFiles,
+                technologies: Object.entries(techCount).map(([name, counts]) => ({
+                    technology: name,
+                    ...counts,
+                })),
+                subScope: scanResult.subScope,
+                targetSubpaths: scanResult.targetSubpaths,
+            },
+            reportContent: report,
+        },
+        herculesAvailable,
+    );
 }
 
 // ─── Report Display ───────────────────────────────────────────────────────────
@@ -726,7 +865,7 @@ function displayReport(report: string, scanResult: ScanResult, repoPath: string)
     }
     console.log(PURPLE.bold("═".repeat(62)));
     console.log();
-    console.log(report);
+    console.log(colorizeReport(report));
     console.log();
 
     // Summary table

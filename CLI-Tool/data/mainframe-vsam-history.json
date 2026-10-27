@@ -1,0 +1,389 @@
+[
+  {
+    "id": "AS-20261026-152457-15112772 ",
+    "executionType": "ASSIGNMENT",
+    "timestamp": "2026-10-26T09:54:57.741Z",
+    "julianDate": "26.299",
+    "formattedTime": "15:24:57",
+    "targetName": "TYCS-E-Sarthak_Jadhav-MFT-Assignment-2(Job).docx",
+    "targetPath": "D:\\Projects_Extended\\Mainframe-Mega-Project\\CLI-Tool\\assignment-audit-TYCS-E-Sarthak_Jadhav-MFT-Assignment-2(Job)-2026-10-26.txt",
+    "scopeOrZId": "12413357",
+    "verdict": "COMPLETED",
+    "grade": "A",
+    "primaryScore": 85,
+    "recordCount": 4,
+    "returnCode": "RC=0000",
+    "status": "PASS",
+    "mode": "HERCULES_TK5",
+    "telemetry": {
+      "jobNames": {
+        "sort": "AUSO1001",
+        "cobol": "AUCO1001",
+        "rexx": "AURX1001",
+        "integrity": "AUIT1001"
+      },
+      "datasetNames": {
+        "final": "HERC01.AUDIT.FINAL"
+      },
+      "stages": [
+        {
+          "stage": "JCL SORT",
+          "returnCode": "0000",
+          "status": "PASS",
+          "details": "Sorted extracted code by language & size"
+        },
+        {
+          "stage": "COBOL Match-Merge",
+          "returnCode": "0000",
+          "status": "PASS",
+          "details": "Matched against syllabus keywords"
+        },
+        {
+          "stage": "REXX Deduplication",
+          "returnCode": "0000",
+          "status": "PASS",
+          "details": "Deduplicated by MD5 hash"
+        },
+        {
+          "stage": "Integrity Check",
+          "returnCode": "0000",
+          "status": "PASS",
+          "details": "Verified record count integrity"
+        }
+      ],
+      "integrityVerified": true,
+      "isFailureTest": false
+    },
+    "assignmentDetails": {
+      "fileType": "DOCX",
+      "pageCount": 1,
+      "problemStatement": "Aim: Submit Job, Redirect Output, Check Job Status and Outpu...",
+      "detectedZIds": [
+        "12413357"
+      ],
+      "zIdConsistent": true,
+      "requirementsMet": 3,
+      "requirementsTotal": 3,
+      "totalCodeBlocks": 4,
+      "textBlocks": 4,
+      "ocrBlocks": 0,
+      "overallOptimizationGrade": "A",
+      "suggestions": [
+        "Optimization verified on TK5 batch runner."
+      ],
+      "codeBlocks": []
+    },
+    "vsamRecord": "AS-20261026-152457-15112772 ASGN26.299  15:24:57RC=0000 A   008500000004PASS    TYCS-E-SARTHAK_JADHAV-MFT-ASSIGNMENT-2_J12413357                                ",
+    "reportContent": "\n══════════════════════════════════════════════════════════════════════\n  MAINFRAME ASSIGNMENT AUDITOR — ASSIGNMENT EVALUATION REPORT\n══════════════════════════════════════════════════════════════════════\n  Document       : TYCS-E-Sarthak_Jadhav-MFT-Assignment-2(Job).docx\n  File Type      : DOCX\n  Pages          : 1\n  Code Blocks    : 4\n  Z_IDs Detected : 12413357\n  Audit Time     : 2026-10-26T09:54:57.741Z\n  Problem Stmt   : Aim: Submit Job, Redirect Output, Check Job Status and Outpu...\n\n  ┌──────────────────────────────────────────────────────────────────┐\n  │   SECTION 1: ASSIGNMENT COMPLETION STATUS                        │\n  ├──────────────────────────────────────────────────────────────────┤\n  │   Verdict             : ✓ COMPLETED                              │\n  │   Problem Match       : 85%                                      │\n  │   Requirements Met    : 3 / 3                                    │\n  └──────────────────────────────────────────────────────────────────┘\n\n  ┌──────────────────────────────────────────────────────────────────┐\n  │   SECTION 2: STUDENT ID / Z_ID CONSISTENCY CHECK                 │\n  ├──────────────────────────────────────────────────────────────────┤\n  │   Identities Detected : 12413357                                 │\n  │   Consistency         : ✓ CONSISTENT                             │\n  │   Details             : All pages reference the same student ... │\n  └──────────────────────────────────────────────────────────────────┘\n\n  ┌──────────────────────────────────────────────────────────────────┐\n  │   SECTION 3: CODE OPTIMIZATION ANALYSIS                          │\n  ├──────────────────────────────────────────────────────────────────┤\n  │   Overall Grade       : A                                        │\n  │   Code Blocks Analyzed: 4                                        │\n  │                                                                  │\n  │     [Block 1] Unknown                                            │\n  │       Grade           : A                                        │\n  │       Time Complexity : O(1) - Constant                          │\n  │       Space Complexity: O(1) - Constant                          │\n  │       Code Smells     : 0                                        │\n  │       ⚠ Clean implementation detected in Unknown (17 lines).     │\n  │                                                                  │\n  │     [Block 2] Unknown                                            │\n  │       Grade           : A                                        │\n  │       Time Complexity : O(1) - Constant                          │\n  │       Space Complexity: O(1) - Constant                          │\n  │       Code Smells     : 0                                        │\n  │       ⚠ Clean implementation detected in Unknown (1 lines).      │\n  │                                                                  │\n  │     [Block 3] Unknown                                            │\n  │       Grade           : A                                        │\n  │       Time Complexity : O(1) - Constant                          │\n  │       Space Complexity: O(1) - Constant                          │\n  │       Code Smells     : 0                                        │\n  │       ⚠ Clean implementation detected in Unknown (21 lines).     │\n  │                                                                  │\n  │     [Block 4] Unknown                                            │\n  │       Grade           : A                                        │\n  │       Time Complexity : O(1) - Constant                          │\n  │       Space Complexity: O(1) - Constant                          │\n  │       Code Smells     : 0                                        │\n  │       ⚠ Clean implementation detected in Unknown (1 lines).      │\n  │                                                                  │\n  └──────────────────────────────────────────────────────────────────┘\n\n  ┌──────────────────────────────────────────────────────────────────┐\n  │   SECTION 4: SUGGESTIONS FOR IMPROVEMENT                         │\n  ├──────────────────────────────────────────────────────────────────┤\n  │   1. [✓LOW   ] [Formatting]                                      │\n  │      Successfully audited 4 code block(s) (40 total lines) in U  │\n  │      nknown.                                                     │\n  │                                                                  │\n  │   2. [✓LOW   ] [Best Practice]                                   │\n  │      Ensure all paragraph headers and division boundaries inclu  │\n  │      de descriptive comment headers for documentation.           │\n  │                                                                  │\n  └──────────────────────────────────────────────────────────────────┘\n\n  ┌──────────────────────────────────────────────────────────────────┐\n  │   SECTION 5: MAINFRAME PIPELINE VERIFICATION (TK5)               │\n  ├──────────────────────────────────────────────────────────────────┤\n  │   [STAGE 0] Upload to MVS         : RC=0 ✓ PASS                  │\n  │   [STAGE 1] JCL SORT (by LANG_NAME): RC=0 ✓ PASS                 │\n  │   [STAGE 2] COBOL Match-Merge     : RC=0 ✓ PASS                  │\n  │   [STAGE 3] REXX Deduplication    : RC=0 ✓ PASS                  │\n  │   [STAGE 4] Integrity Check       : RC=0 ✓ PASS                  │\n  │                                                                  │\n  │   Duplicate Blocks Detected : 0                                  │\n  │   Integrity Verified        : ✓ YES                              │\n  └──────────────────────────────────────────────────────────────────┘\n\n══════════════════════════════════════════════════════════════════════\n  END OF ASSIGNMENT AUDIT REPORT\n══════════════════════════════════════════════════════════════════════\n"
+  },
+  {
+    "id": "AS-20261026-144835-53213629 ",
+    "executionType": "ASSIGNMENT",
+    "timestamp": "2026-10-26T09:18:35.069Z",
+    "julianDate": "26.299",
+    "formattedTime": "14:48:35",
+    "targetName": "TYCS-E-Sarthak_Jadhav-MFT-Assignment-5(IFELSE).docx",
+    "targetPath": "D:\\Projects_Extended\\Mainframe-Mega-Project\\CLI-Tool\\assignment-audit-TYCS-E-Sarthak_Jadhav-MFT-Assignment-5(IFELSE)-2026-10-26.txt",
+    "scopeOrZId": "12413357",
+    "verdict": "COMPLETED",
+    "grade": "A",
+    "primaryScore": 100,
+    "recordCount": 9,
+    "returnCode": "RC=0000",
+    "status": "PASS",
+    "mode": "HERCULES_TK5",
+    "telemetry": {
+      "jobNames": {
+        "sort": "AUSO1001",
+        "cobol": "AUCO1001",
+        "rexx": "AURX1001",
+        "integrity": "AUIT1001"
+      },
+      "datasetNames": {
+        "final": "HERC01.AUDIT.FINAL"
+      },
+      "stages": [
+        {
+          "stage": "JCL SORT",
+          "returnCode": "0000",
+          "status": "PASS",
+          "details": "Sorted extracted code by language & size"
+        },
+        {
+          "stage": "COBOL Match-Merge",
+          "returnCode": "0000",
+          "status": "PASS",
+          "details": "Matched against syllabus keywords"
+        },
+        {
+          "stage": "REXX Deduplication",
+          "returnCode": "0000",
+          "status": "PASS",
+          "details": "Deduplicated by MD5 hash"
+        },
+        {
+          "stage": "Integrity Check",
+          "returnCode": "0000",
+          "status": "PASS",
+          "details": "Verified record count integrity"
+        }
+      ],
+      "integrityVerified": true,
+      "isFailureTest": false
+    },
+    "assignmentDetails": {
+      "fileType": "DOCX",
+      "pageCount": 1,
+      "problemStatement": "Check whether the code in assingment matches with the Proble...",
+      "detectedZIds": [
+        "12413357"
+      ],
+      "zIdConsistent": true,
+      "requirementsMet": 2,
+      "requirementsTotal": 2,
+      "totalCodeBlocks": 9,
+      "textBlocks": 9,
+      "ocrBlocks": 0,
+      "overallOptimizationGrade": "A",
+      "suggestions": [
+        "Optimization verified on TK5 batch runner."
+      ],
+      "codeBlocks": []
+    },
+    "vsamRecord": "AS-20261026-144835-53213629 ASGN26.299  14:48:35RC=0000 A   010000000009PASS    TYCS-E-SARTHAK_JADHAV-MFT-ASSIGNMENT-5_I12413357                                ",
+    "reportContent": "\n══════════════════════════════════════════════════════════════════════\n  MAINFRAME ASSIGNMENT AUDITOR — ASSIGNMENT EVALUATION REPORT\n══════════════════════════════════════════════════════════════════════\n  Document       : TYCS-E-Sarthak_Jadhav-MFT-Assignment-5(IFELSE).docx\n  File Type      : DOCX\n  Pages          : 1\n  Code Blocks    : 9\n  Z_IDs Detected : 12413357\n  Audit Time     : 2026-10-26T09:18:35.069Z\n  Problem Stmt   : Check whether the code in assingment matches with the Proble...\n\n  ┌──────────────────────────────────────────────────────────────────┐\n  │   SECTION 1: ASSIGNMENT COMPLETION STATUS                        │\n  ├──────────────────────────────────────────────────────────────────┤\n  │   Verdict             : ✓ COMPLETED                              │\n  │   Problem Match       : 100%                                     │\n  │   Requirements Met    : 2 / 2                                    │\n  └──────────────────────────────────────────────────────────────────┘\n\n  ┌──────────────────────────────────────────────────────────────────┐\n  │   SECTION 2: STUDENT ID / Z_ID CONSISTENCY CHECK                 │\n  ├──────────────────────────────────────────────────────────────────┤\n  │   Identities Detected : 12413357                                 │\n  │   Consistency         : ✓ CONSISTENT                             │\n  │   Details             : All pages reference the same student ... │\n  └──────────────────────────────────────────────────────────────────┘\n\n  ┌──────────────────────────────────────────────────────────────────┐\n  │   SECTION 3: CODE OPTIMIZATION ANALYSIS                          │\n  ├──────────────────────────────────────────────────────────────────┤\n  │   Overall Grade       : A                                        │\n  │   Code Blocks Analyzed: 1                                        │\n  │                                                                  │\n  │     [Block 1] COBOL                                              │\n  │       Grade           : A                                        │\n  │       Time Complexity : O(1)                                     │\n  │       Space Complexity: O(1)                                     │\n  │       Code Smells     : 0                                        │\n  │       ⚠ No major issues                                          │\n  │                                                                  │\n  └──────────────────────────────────────────────────────────────────┘\n\n  ┌──────────────────────────────────────────────────────────────────┐\n  │   SECTION 4: SUGGESTIONS FOR IMPROVEMENT                         │\n  ├──────────────────────────────────────────────────────────────────┤\n  │   1. [✓LOW   ] [Pedagogical Category]                            │\n  │      Consider adding explicit initialization of COUNT-NUM and M  │\n  │      ARKS for better readability.                                │\n  │                                                                  │\n  └──────────────────────────────────────────────────────────────────┘\n\n  ┌──────────────────────────────────────────────────────────────────┐\n  │   SECTION 5: MAINFRAME PIPELINE VERIFICATION (TK5)               │\n  ├──────────────────────────────────────────────────────────────────┤\n  │   [STAGE 0] Upload to MVS         : RC=0 ✓ PASS                  │\n  │   [STAGE 1] JCL SORT (by LANG_NAME): RC=0 ✓ PASS                 │\n  │   [STAGE 2] COBOL Match-Merge     : RC=0 ✓ PASS                  │\n  │   [STAGE 3] REXX Deduplication    : RC=0 ✓ PASS                  │\n  │   [STAGE 4] Integrity Check       : RC=0 ✓ PASS                  │\n  │                                                                  │\n  │   Duplicate Blocks Detected : 0                                  │\n  │   Integrity Verified        : ✓ YES                              │\n  └──────────────────────────────────────────────────────────────────┘\n\n══════════════════════════════════════════════════════════════════════\n  END OF ASSIGNMENT AUDIT REPORT\n══════════════════════════════════════════════════════════════════════\n"
+  },
+  {
+    "id": "AS-20261027-093551-60840686 ",
+    "executionType": "ASSIGNMENT",
+    "timestamp": "2026-10-27T04:05:51.704Z",
+    "julianDate": "26.300",
+    "formattedTime": "09:35:51",
+    "targetName": "TYCS-E-Sarthak_Jadhav-MFT-Assignment-7.docx",
+    "targetPath": "D:\\Projects_Extended\\Mainframe-Mega-Project\\CLI-Tool\\assignment-audit-TYCS-E-Sarthak_Jadhav-MFT-Assignment-7-2026-10-27.txt",
+    "scopeOrZId": "12413357",
+    "verdict": "COMPLETED",
+    "grade": "A",
+    "primaryScore": 100,
+    "recordCount": 8,
+    "returnCode": "RC=0000",
+    "status": "PASS",
+    "mode": "HERCULES_TK5",
+    "telemetry": {
+      "jobNames": {
+        "sort": "AUSO1001",
+        "cobol": "AUCO1001",
+        "rexx": "AURX1001",
+        "integrity": "AUIT1001"
+      },
+      "datasetNames": {
+        "final": "HERC01.AUDIT.FINAL"
+      },
+      "stages": [
+        {
+          "stage": "JCL SORT",
+          "returnCode": "0000",
+          "status": "PASS",
+          "details": "Sorted extracted code by language & size"
+        },
+        {
+          "stage": "COBOL Match-Merge",
+          "returnCode": "0000",
+          "status": "PASS",
+          "details": "Matched against syllabus keywords"
+        },
+        {
+          "stage": "REXX Deduplication",
+          "returnCode": "0000",
+          "status": "PASS",
+          "details": "Deduplicated by MD5 hash"
+        },
+        {
+          "stage": "Integrity Check",
+          "returnCode": "0000",
+          "status": "PASS",
+          "details": "Verified record count integrity"
+        }
+      ],
+      "integrityVerified": true,
+      "isFailureTest": false
+    },
+    "assignmentDetails": {
+      "fileType": "DOCX",
+      "pageCount": 1,
+      "problemStatement": "To understand and implement the PERFORM VARYING statement in...",
+      "detectedZIds": [
+        "12413357"
+      ],
+      "zIdConsistent": true,
+      "requirementsMet": 3,
+      "requirementsTotal": 3,
+      "totalCodeBlocks": 8,
+      "textBlocks": 8,
+      "ocrBlocks": 0,
+      "overallOptimizationGrade": "A",
+      "suggestions": [
+        "Optimization verified on TK5 batch runner."
+      ],
+      "codeBlocks": []
+    },
+    "vsamRecord": "AS-20261027-093551-60840686 ASGN26.300  09:35:51RC=0000 A   010000000008PASS    TYCS-E-SARTHAK_JADHAV-MFT-ASSIGNMENT-7.D12413357                                ",
+    "reportContent": "\n══════════════════════════════════════════════════════════════════════\n  MAINFRAME ASSIGNMENT AUDITOR — ASSIGNMENT EVALUATION REPORT\n══════════════════════════════════════════════════════════════════════\n  Document       : TYCS-E-Sarthak_Jadhav-MFT-Assignment-7.docx\n  File Type      : DOCX\n  Pages          : 1\n  Code Blocks    : 8\n  Z_IDs Detected : 12413357\n  Audit Time     : 2026-10-27T04:05:51.704Z\n  Problem Stmt   : To understand and implement the PERFORM VARYING statement in...\n\n  ┌──────────────────────────────────────────────────────────────────┐\n  │   SECTION 1: ASSIGNMENT COMPLETION STATUS                        │\n  ├──────────────────────────────────────────────────────────────────┤\n  │   Verdict             : ✓ COMPLETED                              │\n  │   Problem Match       : 100%                                     │\n  │   Plagiarism Check    : 0%                                       │\n  │   Requirements Met    : 3 / 3                                    │\n  └──────────────────────────────────────────────────────────────────┘\n\n  ┌──────────────────────────────────────────────────────────────────┐\n  │   SECTION 2: STUDENT ID / Z_ID CONSISTENCY CHECK                 │\n  ├──────────────────────────────────────────────────────────────────┤\n  │   Identities Detected : 12413357                                 │\n  │   Consistency         : ✓ CONSISTENT                             │\n  │   Details             : All pages reference the same student ... │\n  └──────────────────────────────────────────────────────────────────┘\n\n  ┌──────────────────────────────────────────────────────────────────┐\n  │   SECTION 3: CODE OPTIMIZATION ANALYSIS                          │\n  ├──────────────────────────────────────────────────────────────────┤\n  │   Overall Grade       : A                                        │\n  │   Code Blocks Analyzed: 8                                        │\n  │                                                                  │\n  │     [Block 1] COBOL                                              │\n  │       Grade           : A                                        │\n  │       Time Complexity : O(n) - Linear                            │\n  │       Space Complexity: O(1) - Constant                          │\n  │       Code Smells     : 0                                        │\n  │       ⚠ Clean implementation detected in COBOL (1 lines).        │\n  │                                                                  │\n  │     [Block 2] COBOL                                              │\n  │       Grade           : A                                        │\n  │       Time Complexity : O(n) - Linear                            │\n  │       Space Complexity: O(1) - Constant                          │\n  │       Code Smells     : 0                                        │\n  │       ⚠ Clean implementation detected in COBOL (1 lines).        │\n  │                                                                  │\n  │     [Block 3] COBOL                                              │\n  │       Grade           : A                                        │\n  │       Time Complexity : O(n) - Linear                            │\n  │       Space Complexity: O(1) - Constant                          │\n  │       Code Smells     : 0                                        │\n  │       ⚠ Clean implementation detected in COBOL (1 lines).        │\n  │                                                                  │\n  │     [Block 4] COBOL                                              │\n  │       Grade           : A                                        │\n  │       Time Complexity : O(n) - Linear                            │\n  │       Space Complexity: O(1) - Constant                          │\n  │       Code Smells     : 0                                        │\n  │       ⚠ Clean implementation detected in COBOL (1 lines).        │\n  │                                                                  │\n  │     [Block 5] COBOL                                              │\n  │       Grade           : A                                        │\n  │       Time Complexity : O(n) - Linear                            │\n  │       Space Complexity: O(1) - Constant                          │\n  │       Code Smells     : 0                                        │\n  │       ⚠ Clean implementation detected in COBOL (21 lines).       │\n  │                                                                  │\n  └──────────────────────────────────────────────────────────────────┘\n\n  ┌──────────────────────────────────────────────────────────────────┐\n  │   SECTION 4: SUGGESTIONS FOR IMPROVEMENT                         │\n  ├──────────────────────────────────────────────────────────────────┤\n  │   1. [✓LOW   ] [Formatting]                                      │\n  │      Successfully audited 8 code block(s) (48 total lines) in C  │\n  │      OBOL, Unknown, JCL.                                         │\n  │                                                                  │\n  │   2. [✓LOW   ] [Best Practice]                                   │\n  │      Ensure all paragraph headers and division boundaries inclu  │\n  │      de descriptive comment headers for documentation.           │\n  │                                                                  │\n  └──────────────────────────────────────────────────────────────────┘\n\n  ┌──────────────────────────────────────────────────────────────────┐\n  │   SECTION 5: MAINFRAME PIPELINE VERIFICATION (TK5)               │\n  ├──────────────────────────────────────────────────────────────────┤\n  │   [STAGE 0] Upload to MVS         : RC=0000 ✓ PASS               │\n  │   [STAGE 1] JCL SORT (by LANG_NAME): RC=0000 ✓ PASS              │\n  │   [STAGE 2] COBOL Match-Merge     : RC=0000 ✓ PASS               │\n  │   [STAGE 3] REXX Deduplication    : RC=0000 ✓ PASS               │\n  │   [STAGE 4] Integrity Check       : RC=0000 ✓ PASS               │\n  │                                                                  │\n  │   Duplicate Blocks Detected : 0                                  │\n  │   Integrity Verified        : ✓ YES                              │\n  └──────────────────────────────────────────────────────────────────┘\n\n══════════════════════════════════════════════════════════════════════\n  END OF ASSIGNMENT AUDIT REPORT\n══════════════════════════════════════════════════════════════════════\n"
+  },
+  {
+    "id": "CP-20261026-104256-74468792 ",
+    "executionType": "CODEBASE_PROJECT",
+    "timestamp": "2026-10-26T05:12:56.921Z",
+    "julianDate": "26.299",
+    "formattedTime": "10:42:56",
+    "targetName": "CLI-Tool",
+    "targetPath": "D:\\Projects_Extended\\Mainframe-Mega-Project\\CLI-Tool",
+    "scopeOrZId": "Entire Project",
+    "verdict": "REQUIRES_REVIEW",
+    "grade": "F",
+    "primaryScore": 0,
+    "recordCount": 1,
+    "returnCode": "RC=0000",
+    "status": "PASS",
+    "mode": "HERCULES_TK5",
+    "telemetry": {
+      "jobNames": {
+        "sort": "AUSO212",
+        "cobol": "AUCO212",
+        "rexx": "AURX212",
+        "integrity": "AUIT212",
+        "report": "AUDRP212"
+      },
+      "datasetNames": {
+        "final": "HERC01.AUDIT.FINAL.DP212"
+      },
+      "stages": [
+        {
+          "stage": "JCL SORT",
+          "returnCode": "0000",
+          "status": "PASS",
+          "details": "Sorted records by TECH_NAME"
+        },
+        {
+          "stage": "COBOL Match-Merge",
+          "returnCode": "0000",
+          "status": "PASS",
+          "details": "AUDCOBOL matched vs TECHREF"
+        },
+        {
+          "stage": "REXX Deduplication",
+          "returnCode": "0000",
+          "status": "PASS",
+          "details": "Pruned duplicate files by MD5"
+        },
+        {
+          "stage": "Integrity Check",
+          "returnCode": "0000",
+          "status": "PASS",
+          "details": "IBM SORT Descending count match"
+        }
+      ],
+      "integrityVerified": true,
+      "isFailureTest": false
+    },
+    "codebaseDetails": {
+      "totalFiles": 26,
+      "filesWithImports": 1,
+      "genuineCount": 0,
+      "pseudoCount": 1,
+      "unknownCount": 0,
+      "duplicateCount": 0,
+      "duplicateFiles": [],
+      "technologies": [
+        {
+          "technology": "Node/Bun",
+          "total": 1,
+          "genuine": 1,
+          "pseudo": 0,
+          "unknown": 0
+        }
+      ],
+      "subScope": "Entire Project"
+    },
+    "vsamRecord": "CP-20261026-104256-74468792 CODE26.299  10:42:56RC=0000 F   000000000001PASS    CLI-TOOL                                ENTIRE_PROJECT                          ",
+    "reportContent": "================================================================================\n          MAINFRAME CODEBASE AUDITOR — ENRICHED AUDIT REPORT                    \n================================================================================\nTarget Repository  : D:\\Projects_Extended\\Mainframe-Mega-Project\\CLI-Tool\nAudit Scope        : Entire Project\nAudit Timestamp    : 2026-10-26T05:12:56.921Z\nTotal Files Scanned: 26\nFiles w/Libraries  : 1\nTotal Tech Records : 1\nAuthenticity Ratio : 0.0% GENUINE (0 Genuine, 1 Pseudo, 0 Unknown)\n--------------------------------------------------------------------------------\n\nSTART  JOB  187  AUDRP212  AUDIT-REPORT          ROOM        6.13.23 AM 26 OCT 26  PRINTER1  SYS TK5R  JOB  187  START  A****\r\n****A  START  JOB  187  AUDRP212  AUDIT-REPORT          ROOM        6.13.23 AM 26 OCT 26  PRINTER1  SYS TK5R  JOB  187  START  A****\r\n****A  START  JOB  187  AUDRP212  AUDIT-REPORT          ROOM        6.13.23 AM 26 OCT 26  PRINTER1  SYS TK5R  JOB  187  START  A****\r\n****A  START  JOB  187  AUDRP212  AUDIT-REPORT          ROOM        6.13.23 AM 26 OCT 26  PRINTER1  SYS TK5R  JOB  187  START  A****\r\n\f                                                J E S 2   J O B   L O G\r\n 6.13.23 JOB  187  $HASP373 AUDRP212 STARTED - INIT  1 - CLASS A - SYS TK5R\r\n 6.13.23 JOB  187  IEF403I AUDRP212 - STARTED - TIME=06.13.23\r\n 6.13.23 JOB  187  IEFACTRT - Stepname  Procstep  Program   Retcode\r\n 6.13.23 JOB  187  AUDRP212   STEP01              IEBGENER  RC= 0000\r\n 6.13.23 JOB  187  IEF404I AUDRP212 - ENDED - TIME=06.13.23\r\n 6.13.23 JOB  187  $HASP395 AUDRP212 ENDED\r\n------ JES2 JOB STATISTICS ------\r\n 26 OCT 26 JOB EXECUTION DATE\r\n         8 CARDS READ\r\n        48 SYSOUT PRINT RECORDS\r\n         0 SYSOUT PUNCH RECORDS\r\n      0.00 MINUTES EXECUTION TIME\r\n\f    1     //AUDRP212 JOB (ACCT),'AUDIT-REPORT',                                   JOB  187\r\n          //         CLASS=A,MSGCLASS=A,USER=HERC01,PASSWORD=\r\n    2     //STEP01   EXEC PGM=IEBGENER\r\n    3     //SYSPRINT DD SYSOUT=*\r\n    4     //SYSUT1   DD DSN=HERC01.AUDIT.FINAL.DP212,DISP=SHR\r\n    5     //SYSUT2   DD SYSOUT=*\r\n    6     //SYSIN    DD DUMMY\r\n\fIEF236I ALLOC. FOR AUDRP212 STEP01\r\nIEF237I JES2 ALLOCATED TO SYSPRINT\r\nIEF237I 290  ALLOCATED TO SYSUT1\r\nIEF237I 190  ALLOCATED TO SYS00028\r\nIEF237I JES2 ALLOCATED TO SYSUT2\r\nIEF237I DMY  ALLOCATED TO SYSIN\r\nIEF142I AUDRP212 STEP01 - STEP WAS EXECUTED - COND CODE 0000\r\nIEF285I   JES2.JOB00187.SO0101                         SYSOUT\r\nIEF285I   HERC01.AUDIT.FINAL.DP212                     KEPT          *--------1\r\nIEF285I   VOL SER NOS= WORK01.\r\nIEF285I   SYS1.UCAT.TSO                                KEPT          *--------0\r\nIEF285I   VOL SER NOS= TSO001.\r\nIEF285I   JES2.JOB00187.SO0102                         SYSOUT\r\nIEF373I STEP /STEP01  / START 26299.0613\r\nIEF374I STEP /STEP01  / STOP  26299.0613 CPU    0MIN 00.06SEC SRB    0MIN 00.00SEC VIRT    40K SYS   200K\r\n************************************************************************************************************************************\r\n*     1. Jobstep of job: AUDRP212    Stepname: STEP01      Program name: IEBGENER   Executed on 26.10.26 from 06.13.23 to 06.13.23 *\r\n*         elapsed time  00:00:00,30                      CPU-Identifier:  TK5R           Page-in:      0                           *\r\n*             CPU time  00:00:00,06               Virtual Storage used:     40K         Page-out:      0                           *\r\n*           corr. CPU:  00:00:00,06   CPU time has been corrected by  1 / 1,0  multiplier                                          *\r\n*                                                                                                                                  *\r\n*     I/O Operation                                                                                                                *\r\n*     Number of records read via DD * or DD DATA:      0                                                                           *\r\n*     DMY.......0 290.......1 190.......0 DMY.......0 DMY.......0                                                                  *\r\n*                                                                                                                                  *\r\n*                                          Charge for step (w/o SYSOUT):          0,10                                             *\r\n************************************************************************************************************************************\r\nIEF375I  JOB /AUDRP212/ START 26299.0613\r\nIEF376I  JOB /AUDRP212/ STOP  26299.0613 CPU    0MIN 00.06SEC SRB    0MIN 00.00SEC\r\n\fDATA SET UTILITY - GENERATE                                                                       PAGE 0001\r\nIEB352I WARNING : OUTPUT RECFM/LRECL/BLKSIZE COPIED FROM INPUT\r\nPROCESSING ENDED AT EOD\r\r\f                  AAAAAAAAAA   UU        UU  DDDDDDDDD     RRRRRRRRRRR   PPPPPPPPPPP    2222222222        11        2222222222\r\n                AAAAAAAAAAAA  UU        UU  DDDDDDDDDD    RRRRRRRRRRRR  PPPPPPPPPPPP  222222222222      111       222222222222\r\n               AA        AA  UU        UU  DD       DD   RR        RR  PP        PP  22        22     1111       22        22\r\n              AA        AA  UU        UU  DD        DD  RR        RR  PP        PP            22       11                 22\r\n             AA        AA  UU        UU  DD        DD  RR        RR  PP        PP            22       11                 22\r\n            AAAAAAAAAAAA  UU        UU  DD        DD  RRRRRRRRRRRR  PPPPPPPPPPPP           22        11                22\r\n           AAAAAAAAAAAA  UU        UU  DD        DD  RRRRRRRRRRR   PPPPPPPPPPP          22          11              22\r\n          AA        AA  UU        UU  DD        DD  RR    RR      PP                 22            11            22\r\n         AA        AA  UU        UU  DD        DD  RR     RR     PP               22              11          22\r\n        AA        AA  UU        UU  DD       DD   RR      RR    PP             22                11        22\r\n       AA        AA  UUUUUUUUUUUU  DDDDDDDDDD    RR       RR   PP            222222222222   1111111111   222222222222\r\n      AA        AA   UUUUUUUUUU   DDDDDDDDD     RR        RR  PP            222222222222   1111111111   222222222222\r\n                    JJJJJJJJJJ       11        8888888888   777777777777                               AAAAAAAAAA\r\n                    JJJJJJJJJJ      111       888888888888  77777777777                               AAAAAAAAAAAA\r\n                        JJ         1111       88        88  77      77                                AA        AA\r\n                        JJ           11       88        88         77                                 AA        AA\r\n                        JJ           11        88      88         77                                  AA        AA\r\n                        JJ           11         88888888         77                                   AAAAAAAAAAAA\r\n                        JJ           11         88888888         77                                   AAAAAAAAAAAA\r\n                        JJ           11        88      88        77                                   AA        AA\r\n                  JJ    JJ           11       88        88       77                                   AA        AA\r\n                  JJ    JJ           11       88        88       77                                   AA        AA\r\n                  JJJJJJJJ       1111111111   888888888888       77                                   AA        AA\r\n                   JJJJJJ        1111111111    8888888888        77                                   AA        AA\r\n****A   END   JOB  187  AUDRP212  AUDIT-REPORT          ROOM        6.13.23 AM 26 OCT 26  PRINTER1  SYS TK5R  JOB  187   END   A****\r\n****A   END   JOB  187  AUDRP212  AUDIT-REPORT          ROOM        6.13.23 AM 26 OCT 26  PRINTER1  SYS TK5R  JOB  187   END   A****\r\n****A   END   JOB  187  AUDRP212  AUDIT-REPORT          ROOM        6.13.23 AM 26 OCT 26  PRINTER1  SYS TK5R  JOB  187   END   A****\r\n****A   END   JOB  187  AUDRP212  AUDIT-REPORT          ROOM        6.13.23 AM 26 OCT 26  PRINTER1  SYS TK5R  JOB  187   END   A****\r\n\n================================================================================\n                  DETAILED REPOSITORY DUPLICATE FILE AUDIT                      \n================================================================================\n  ✓ Zero duplicate files detected. All scanned files have unique MD5 content hashes.\n\n================================================================================\n                  FILE-BY-FILE TECHNOLOGY AUDIT LEDGER                          \n================================================================================\n  NUM | FILE PATH                                      | TECH         | USAGE    | HASH    \n  ----+------------------------------------------------+--------------+----------+---------\n    1 | modes/mainframe/types.ts                       | REACT        | PSEUDO   | FB755B86\n\n\n================================================================================\n                      END OF MAINFRAME AUDIT REPORT                             \n================================================================================"
+  },
+  {
+    "id": "CP-20261026-105023-74169469 ",
+    "executionType": "CODEBASE_PROJECT",
+    "timestamp": "2026-10-26T05:20:23.741Z",
+    "julianDate": "26.299",
+    "formattedTime": "10:50:23",
+    "targetName": "CLI-Tool",
+    "targetPath": "D:\\Projects_Extended\\Mainframe-Mega-Project\\CLI-Tool",
+    "scopeOrZId": "Entire Project",
+    "verdict": "AUTHENTIC",
+    "grade": "B",
+    "primaryScore": 84,
+    "recordCount": 1,
+    "returnCode": "RC=0000",
+    "status": "PASS",
+    "mode": "HERCULES_TK5",
+    "telemetry": {
+      "jobNames": {
+        "sort": "AUSO212",
+        "cobol": "AUCO212",
+        "rexx": "AURX212",
+        "integrity": "AUIT212",
+        "report": "AUDRP212"
+      },
+      "datasetNames": {
+        "final": "HERC01.AUDIT.FINAL.DP212"
+      },
+      "stages": [
+        {
+          "stage": "JCL SORT",
+          "returnCode": "0000",
+          "status": "PASS",
+          "details": "Sorted records by TECH_NAME"
+        },
+        {
+          "stage": "COBOL Match-Merge",
+          "returnCode": "0000",
+          "status": "PASS",
+          "details": "AUDCOBOL matched vs TECHREF"
+        },
+        {
+          "stage": "REXX Deduplication",
+          "returnCode": "0000",
+          "status": "PASS",
+          "details": "Pruned duplicate files by MD5"
+        },
+        {
+          "stage": "Integrity Check",
+          "returnCode": "0000",
+          "status": "PASS",
+          "details": "IBM SORT Descending count match"
+        }
+      ],
+      "integrityVerified": true,
+      "isFailureTest": false
+    },
+    "codebaseDetails": {
+      "totalFiles": 26,
+      "filesWithImports": 1,
+      "genuineCount": 1,
+      "pseudoCount": 0,
+      "unknownCount": 0,
+      "duplicateCount": 0,
+      "duplicateFiles": [],
+      "technologies": [
+        {
+          "technology": "Node/Bun",
+          "total": 1,
+          "genuine": 1,
+          "pseudo": 0,
+          "unknown": 0
+        }
+      ],
+      "subScope": "Entire Project"
+    },
+    "vsamRecord": "CP-20261026-105023-74169469 CODE26.299  10:50:23RC=0000 B   008400000001PASS    CLI-TOOL                                ENTIRE_PROJECT                          ",
+    "reportContent": "```\n================================================================================\n           ENTERPRISE MAINFRAME CODEBASE AUDIT REPORT\n           Repository: D:\\Projects_Extended\\Mainframe-Mega-Project\\Mainframe-Programs\n           Audit Timestamp: 2026-10-26T05:20:23.741Z\n================================================================================\n```\n\n```\n--------------------------------------------------------------------------------\n1. EXECUTIVE SUMMARY & CODEBASE AUTHENTICITY SCORE\n--------------------------------------------------------------------------------\n\nAUDIT METRICS OVERVIEW:\nTotal Files Analyzed                 : 10\nFiles With Imports                   : 10\nTotal Technology Records             : 25\nGenuine Technology Usage             : 21\nPseudo Technology Usage              : 4\nUnknown Technology Usage             : 0\nAuthenticity Percentage              : 84.0%\n\nGRADE ASSIGNMENT: B\nThe codebase demonstrates moderate integration of mainframe technologies, \nhowever, presence of pseudo-implemented components indicates misalignment \nbetween claimed functionality and actual implementation.\n\nEXECUTIVE VERDICT:\nThe reported technology stack includes genuine implementations across \nCOBOL-SORT, DB2-JCL, JCL-SORT, JCL-IEBGEN, CICS-JCL, IMS-JCL, DFSORT, \nand JCL-IEFBR1. However, several files contain pseudo-implementations \nthat do not reflect real-world integration or operational usage of these \ntechnologies. This discrepancy suggests potential misrepresentation or \nincomplete development cycles in the project lifecycle.\n--------------------------------------------------------------------------------\n```\n\n```\n--------------------------------------------------------------------------------\n2. ARCHITECTURAL & TECHNOLOGY STACK EVALUATION\n--------------------------------------------------------------------------------\n\nTECHNOLOGY STACK ANALYSIS:\n\n+---------------+----------------+----------+----------+------------+\n| Technology    | Total Instances| Genuine  | Pseudo   | Unknown    |\n+---------------+----------------+----------+----------+------------+\n| COBOL-SORT    |          7     |    5     |    2     |     0      |\n| REXX          |          1     |    0     |    1     |     0      |\n| JCL-IEFBR1    |          1     |    1     |    0     |     0      |\n| JCL-IEBGEN    |          4     |    4     |    0     |     0      |\n| CICS-JCL      |          1     |    1     |    0     |     0      |\n| IMS-JCL       |          1     |    1     |    0     |     0      |\n| DFSORT        |          1     |    1     |    0     |     0      |\n| JCL-SORT      |          4     |    4     |    0     |     0      |\n| DB2-JCL       |          4     |    4     |    0     |     0      |\n| JCL (Generic) |          1     |    0     |    1     |     0      |\n+---------------+----------------+----------+----------+------------+\n\nFRAMEWORK-BY-FRAMEWORK ANALYSIS:\n\n• COBOL-SORT:\n   - 5 GENUINE instances include PIPELINE_COMPLETE.jcl, STEP1_SORT.jcl,\n     STEP4_INTEGRITY_FAILURE.jcl, and STEP4_INTEGRITY_SUCCESS.jcl – all\n     showing consistent use in actual batch processing pipelines.\n   - 2 PSEUDO instances: AUDCOBOL.cbl and AUDRXXX.rexx are labeled as\n     COBOL-SORT but do not exhibit functional behavior aligned with expected\n     COBOL sorting logic.\n\n• REXX:\n   - Entirely PSEUDO in current audit scope; AUDCOUNT.rexx lacks demonstrable\n     execution context or integration point within defined pipeline stages.\n\n• JCL Variants:\n   - All sub-variants like IEFBR1, IEBGEN, SORT, DB2, CICS, IMS show\n     full compliance with standard JCL syntax and functional usage.\n   - One generic JCL entry (STEP2_COBOL.jcl) is marked PSEUDO – likely due\n     to incomplete job definition rather than misuse.\n\nOVERALL ASSESSMENT:\nThere exists substantial architectural alignment at the job-control level\n(JCL frameworks), yet higher-order language constructs (e.g., COBOL-SORT,\nREXX preprocessing) suffer from inconsistent implementation fidelity.\n--------------------------------------------------------------------------------\n```\n\n```\n--------------------------------------------------------------------------------\n3. CODE DUPLICATION & TECHNICAL DEBT ASSESSMENT\n--------------------------------------------------------------------------------\n\nDUPLICATION FINDINGS:\nDuplicate Files Count                  : 0\nIdentical Hash Collisions Detected     : None\nSample Deduplication Records           : N/A\n\nTECHNICAL DEBT OBSERVATIONS:\n\n1. Content Redundancy Risk:\n   Despite zero duplicates detected via hash comparison, multiple files share\n   identical hashes under different technological labels (see SAMPLE AUDIT).\n   Example: INSTALL_TK5.jcl tagged under various techs despite single physical file.\n\n2. Misclassification Liability:\n   Files such as AUDRXXX.rexx and AUDCOBOL.cbl being categorized as pseudo-\n   COBOL-SORT suggest either placeholder stubs or deprecated code snippets\n   retained for documentation purposes.\n\n3. Pipeline Stage Integrity Gaps:\n   Step 2 (\"COBOL Match-Merge by USERNAME vs TECHREF\") uses AUDCOBOL.cbl which\n   is marked PSEUDO. If this stage were live, it would introduce false positives\n   or silent failures.\n\nRECOMMENDED TECHNICAL DEBT ACTIONS:\n   ▶ Review pseudo-labeled artifacts for removal or replacement.\n   ▶ Implement automated tagging validation during CI/CD injection points.\n   ▶ Establish traceability matrix linking each job step to verifiable source logic.\n--------------------------------------------------------------------------------\n```\n\n```\n--------------------------------------------------------------------------------\n4. MAINFRAME BATCH PIPELINE COMPLIANCE CERTIFICATE\n--------------------------------------------------------------------------------\n\nPIPELINE OVERVIEW:\nStage 1   → JCL SORT (PGM=SORT) – Key: TECH_NAME cols 41-50  \nStage 2   → COBOL Match-Merge (AUDCOBOL) vs TECHREF  \nStage 3   → REXX Deduplication (AUDRXXX) by CONTENT_HASH  \nStage 4   → IBM SORT Descending + AUDCOUNT Count Validation  \n\nCOMPLIANCE VERIFICATION BY REQUIREMENT:\n\n┌────────────────────────────────────┬──────────────────────────────────────┐\n│ Requirement                        │ Status                               │\n├────────────────────────────────────┼──────────────────────────────────────┤\n│ Req. 1: JCL SORT Execution       │ ✅ PASSED (Genuine JCL-SORT Records) │\n│                                    │ Files: STEP1_SORT.jcl                 │\n├────────────────────────────────────┼──────────────────────────────────────┤\n│ Req. 2: COBOL AUDCOBOL Merge       │ ⚠️ PARTIAL PASS                       │\n│                                    │ Note: AUDCOBOL.cbl identified as      │\n│                                    │ PSEUDO – lacks executable merge logic │\n├────────────────────────────────────┼──────────────────────────────────────┤\n│ Req. 3: REXX AUDRXXX Deduplication │ ❌ FAILED                             │\n│                                    │ AUDRXXX.rexx marked PSEUDO – no       │\n│                                    │ measurable pruning activity recorded  │\n├────────────────────────────────────┼──────────────────────────────────────┤\n│ Req. 4: IBM Sort + AUDCOUNT Check  │ ✅ PASSED                            │\n│                                    │ Verified through STEP4_*jobs          │\n└────────────────────────────────────┴──────────────────────────────────────┘\n\nCERTIFICATE STATEMENT:\nPipeline Requirements 1 and 4 have been fully verified with authentic code\nintegration. Requirement 2 shows partial compliance contingent on AUDCOBOL\nvalidation. Requirement 3 failed entirely as no functional deduplication\nroutine was embedded.\n\nCERTIFICATION STATUS: CONDITIONALLY CERTIFIED WITH CRITICAL DEFICIENCIES.\n--------------------------------------------------------------------------------\n```\n\n```\n--------------------------------------------------------------------------------\n5. STRATEGIC RECOMMENDATIONS FOR ARCHITECTURAL CLEANUP\n--------------------------------------------------------------------------------\n\nPRIORITY ACTION ITEMS:\n\nHIGH PRIORITY (Immediate Remediation Required):\n\n1. Replace AUDCOBOL.cbl AND AUDRXXX.rexx:\n   - Either refactor into genuine COBOL/REXX modules or eliminate them.\n   - These represent key failure points in Steps 2 and 3 respectively.\n\n2. Eliminate Generic JCL Misclassifications:\n   - Remove 'JCL' tag from STEP2_COBOL.jcl and apply appropriate specific tag\n     (e.g., COBOL-JCL), or restructure if generic nature is intentional.\n\nMEDIUM PRIORITY (Within Next Sprint Cycle):\n\n3. Enhance Traceability Between Job Steps and Source Logic:\n   - Create explicit mapping between each TECR record and its corresponding\n     file/workflow node to prevent future pseudo contamination.\n\n4. Normalize Labeling Schema Across Repositories:\n   - Introduce centralized taxonomy registry mapped to canonical mainframe\n     framework names to ensure consistency during audits.\n\nLOW PRIORITY (Ongoing Governance Improvements):\n\n5. Automate Pseudo Detection via Static Analysis Rules:\n   - Integrate rule engine checks into pre-commit hooks to flag unlinked\n     imports or unused references automatically.\n\n6. Schedule Quarterly Deep-Dive Audits:\n   - To catch drift early, especially around complex integrations involving\n     CICS, IMS, and DB2 subsystems.\n--------------------------------------------------------------------------------\n```\n\n```\n===============================================================================\n                              END OF AUDIT REPORT\n===============================================================================\n```"
+  }
+]
