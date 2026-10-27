@@ -149,6 +149,8 @@ export interface TK5VerificationResult {
     stages: TK5StageResult[];
     duplicatesFound: number;
     integrityVerified: boolean;
+    jobNames?: Record<string, string>;
+    datasetNames?: Record<string, string>;
 }
 
 // ─── Final Report ─────────────────────────────────────────────────────────────

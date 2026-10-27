@@ -147,6 +147,15 @@ async function runAssignmentTk5Pipeline(
             stages,
             duplicatesFound: 0,
             integrityVerified: true,
+            jobNames: {
+                sort: "SIM_SORT",
+                cobol: "SIM_COB",
+                rexx: "SIM_REX",
+                integrity: "SIM_ITG",
+            },
+            datasetNames: {
+                final: "SIMULATED.AUDIT.FINAL",
+            },
         };
     }
 
@@ -270,6 +279,21 @@ async function runAssignmentTk5Pipeline(
         stages,
         duplicatesFound: 0,
         integrityVerified,
+        jobNames: {
+            clean: jobNames.cleanJob || `CL${suffix}`.slice(0, 8),
+            upload: jobNames.uploadJob,
+            sort: jobNames.sortJob,
+            cobol: jobNames.cobolJob,
+            rexx: jobNames.rexxJob,
+            integrity: jobNames.integrityJob,
+        },
+        datasetNames: {
+            input: datasets.inputDsn,
+            sorted: datasets.sortedDsn,
+            cobolOut: datasets.cobolOutDsn,
+            rexxOut: datasets.rexxOutDsn,
+            final: datasets.finalDsn,
+        },
     };
 }
 
@@ -551,14 +575,14 @@ export async function runAssignmentMode(): Promise<void> {
                 status: statusVal as any,
                 mode: isHerculesLive ? "HERCULES_TK5" : "SIMULATED",
                 telemetry: {
-                    jobNames: {
-                        upload: "ASUP1000",
-                        sort: "ASSO1000",
-                        cobol: "ASCO1000",
-                        rexx: "ASRX1000",
-                        integrity: "ASIT1000",
+                    jobNames: tk5Result.jobNames || {
+                        upload: "N/A",
+                        sort: "N/A",
+                        cobol: "N/A",
+                        rexx: "N/A",
+                        integrity: "N/A",
                     },
-                    datasetNames: {
+                    datasetNames: tk5Result.datasetNames || {
                         final: "HERC01.AUDIT.FINAL",
                     },
                     stages: tk5Result.stages.map((s) => ({

@@ -83,23 +83,3 @@ export function buildVsamReproJcl(
     ].join("\n");
 }
 
-/**
- * JCL to print/dump the dataset using IDCAMS PRINT CHARACTER.
- * Output is captured from the Hercules printer/syslog spool.
- */
-export function buildVsamPrintJcl(
-    jobName: string = "AUDVSPT1",
-    datasetName: string = VSAM_DATASET_NAME,
-    user: string = "HERC01",
-    password: string = "CUL8TR",
-): string {
-    return [
-        ...makeJobCard(jobName, "VSAM-PRINT", user, password),
-        `//STEP01   EXEC PGM=IDCAMS`,
-        `//SYSPRINT DD SYSOUT=*`,
-        `//SYSIN    DD *`,
-        `  PRINT INDATASET(${datasetName}) CHARACTER`,
-        `/*`,
-        "",
-    ].join("\n");
-}

@@ -105,22 +105,3 @@ export interface VsamQueryFilter {
     endDate?: string;
 }
 
-/** VSAM KSDS Cluster Metadata */
-export interface VsamClusterMetadata {
-    clusterName: string;
-    dataComponentName: string;
-    indexComponentName: string;
-    volumeSerial: string;
-    organization: "INDEXED (KSDS)";
-    keyOffset: number;
-    keyLength: number;
-    recordSize: {
-        average: number;
-        maximum: number;
-    };
-    controlIntervalSize: number;
-    totalRecords: number;
-    highAllocatedRba: number;
-    highUsedRba: number;
-    lastUpdated: string;
-}

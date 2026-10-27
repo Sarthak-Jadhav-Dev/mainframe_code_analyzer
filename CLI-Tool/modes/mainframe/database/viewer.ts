@@ -15,12 +15,9 @@ import {
     queryRecords,
     getRecordById,
     deleteRecord,
-    clearAllRecords,
-    getClusterMetadata,
-    runLiveIdcamsPrint,
 } from "./vsam-storage.ts";
 import { ICONS } from "../../../terminal_ui/icons.ts";
-import { VSAM_CLUSTER_NAME, VSAM_DATASET_NAME } from "./vsam-jcl.ts";
+import { VSAM_CLUSTER_NAME } from "./vsam-jcl.ts";
 
 // ─── Theme Colors ─────────────────────────────────────────────────────────────
 
@@ -120,20 +117,8 @@ export async function runDatabaseViewerMode(): Promise<void> {
                     label: `${ICONS.stats} Filter & Query Records (by Type, Status, Keyword, Z_ID)`,
                 },
                 {
-                    value: "telemetry",
-                    label: `${ICONS.mainframe} VSAM Cluster Architecture & Storage Telemetry`,
-                },
-                {
-                    value: "live_print",
-                    label: `${ICONS.doc} Live IDCAMS PRINT on Hercules TK5 Spool`,
-                },
-                {
                     value: "export",
                     label: `${ICONS.folder} Export History (JSON / TXT / CSV)`,
-                },
-                {
-                    value: "manage",
-                    label: `${ICONS.warn} Manage / Purge Database Records`,
                 },
                 {
                     value: "exit",
@@ -150,14 +135,8 @@ export async function runDatabaseViewerMode(): Promise<void> {
             await browseRecordsFlow(records);
         } else if (action === "filter") {
             await filterRecordsFlow();
-        } else if (action === "telemetry") {
-            await showClusterTelemetry();
-        } else if (action === "live_print") {
-            await runLiveIdcamsFlow();
         } else if (action === "export") {
             await exportRecordsFlow(records);
-        } else if (action === "manage") {
-            await manageDatabaseFlow();
         }
     }
 }
@@ -399,75 +378,6 @@ async function displayRecordInspection(record: MainframeExecutionRecord): Promis
     }
 }
 
-// ─── Cluster Telemetry ────────────────────────────────────────────────────────
-
-async function showClusterTelemetry(): Promise<void> {
-    const meta = getClusterMetadata();
-
-    console.log();
-    console.log(PURPLE.bold("  ╔══════════════════════════════════════════════════════════════════╗"));
-    console.log(PURPLE.bold("  ║  ") + CYAN.bold("VSAM KSDS CLUSTER ARCHITECTURE & STORAGE TELEMETRY") + PURPLE.bold("             ║"));
-    console.log(PURPLE.bold("  ╚══════════════════════════════════════════════════════════════════╝"));
-    console.log();
-
-    console.log(CYAN("  ╭── CLUSTER ARCHITECTURE: HERC01.AUDIT.HIST.KSDS ──────────────────╮"));
-    console.log(CYAN("  │"));
-    console.log(`  │   ${BOLD("Cluster Name        :")} ${CYAN.bold(meta.clusterName)}`);
-    console.log(`  │   ${BOLD("Data Component      :")} ${meta.dataComponentName}`);
-    console.log(`  │   ${BOLD("Index Component     :")} ${meta.indexComponentName}`);
-    console.log(`  │   ${BOLD("DASD Volume Serial  :")} ${YELLOW.bold(meta.volumeSerial)} (IBM 3390 Direct Access Device)`);
-    console.log(`  │   ${BOLD("Data Set Org (DSORG):")} ${GREEN.bold(meta.organization)}`);
-    console.log(`  │   ${BOLD("Primary Key Specs   :")} Offset: ${CYAN("0")}, Length: ${CYAN("28 Bytes")} (Cols 1-28)`);
-    console.log(`  │   ${BOLD("Record Length       :")} ${meta.recordSize.average} Bytes Fixed (RECFM=FB, LRECL=160)`);
-    console.log(`  │   ${BOLD("Control Interval    :")} ${CYAN("4096 Bytes")} (4KB Standard CI)`);
-    console.log(`  │   ${BOLD("Total Active Records:")} ${GREEN.bold(meta.totalRecords.toString())} Records`);
-    console.log(`  │   ${BOLD("High-Allocated RBA  :")} ${meta.highAllocatedRba} Bytes`);
-    console.log(`  │   ${BOLD("High-Used RBA       :")} ${meta.highUsedRba} Bytes`);
-    console.log(`  │   ${BOLD("Last Synced         :")} ${meta.lastUpdated}`);
-    console.log(CYAN("  │"));
-    console.log(CYAN("  ╰──────────────────────────────────────────────────────────────────╯"));
-    console.log();
-
-    console.log(PURPLE("  ╭── STORAGE CONTROL BLOCK DIAGRAM ─────────────────────────────────╮"));
-    console.log(PURPLE("  │"));
-    console.log(`  │   ${CYAN("┌─────────────────────────────────────────┐")}  ${BOLD("INDEX COMPONENT")}`);
-    console.log(`  │   ${CYAN("│ B-TREE SEQUENCE SET & INDEX POINTERS    │")}  Keys: Offset 0, Len 28`);
-    console.log(`  │   ${CYAN("│ Free Space: 10% CI / 10% CA             │")}  Primary B-Tree Root`);
-    console.log(`  │   ${CYAN("└───────────────────┬─────────────────────┘")}`);
-    console.log(`  │                       ${PURPLE("│ Points to Data Control Intervals (4096 B)")}`);
-    console.log(`  │                       ${PURPLE("▼")}`);
-    console.log(`  │   ${GREEN("┌─────────────────────────────────────────┐")}  ${BOLD("DATA COMPONENT")}`);
-    console.log(`  │   ${GREEN("│ CONTROL INTERVAL (CI = 4096 BYTES)      │")}  LRECL: 160 Bytes Fixed`);
-    console.log(`  │   ${GREEN("│ [REC 1] [REC 2] [REC 3] ... [RDF] [CIDF]│")}  Max 25 Recs per CI`);
-    console.log(`  │   ${GREEN("└─────────────────────────────────────────┘")}  Volume: WORK01 (3390)`);
-    console.log(PURPLE("  │"));
-    console.log(PURPLE("  ╰──────────────────────────────────────────────────────────────────╯"));
-    console.log();
-
-    await text({ message: "Press Enter to return..." });
-}
-
-// ─── Live IDCAMS PRINT ────────────────────────────────────────────────────────
-
-async function runLiveIdcamsFlow(): Promise<void> {
-    const s = spinner();
-    s.start("Submitting IDCAMS PRINT JCL to Hercules TK5 card reader (Port 3505)…");
-
-    const result = await runLiveIdcamsPrint();
-    s.stop();
-
-    if (!result.success) {
-        console.log(RED(`\n  ${ICONS.error} IDCAMS PRINT Failed: ${result.error || "Unknown error"}\n`));
-    } else {
-        console.log(GREEN(`\n  ${ICONS.check} IDCAMS PRINT Job Completed on Hercules TK5 with RC=0000!\n`));
-        console.log(CYAN.bold("─── HERCULES JES2 SPOOL SYSOUT ────────────────────────────────"));
-        console.log(colorizeReport(result.sysout));
-        console.log(CYAN.bold("────────────────────────────────────────────────────────────────"));
-    }
-
-    await text({ message: "Press Enter to return..." });
-}
-
 // ─── Export Records ───────────────────────────────────────────────────────────
 
 async function exportRecordsFlow(records: MainframeExecutionRecord[]): Promise<void> {
@@ -514,29 +424,4 @@ async function exportRecordsFlow(records: MainframeExecutionRecord[]): Promise<v
     fs.writeFileSync(outPath, content, "utf-8");
     console.log(GREEN(`\n  ${ICONS.check} Exported ${records.length} records to: ${outPath}\n`));
     await text({ message: "Press Enter to return..." });
-}
-
-// ─── Manage Database ──────────────────────────────────────────────────────────
-
-async function manageDatabaseFlow(): Promise<void> {
-    const action = await select({
-        message: BOLD("Manage Database Records:"),
-        options: [
-            { value: "clear_all", label: `${ICONS.warn} Clear / Purge All Execution Records` },
-            { value: "back", label: `${ICONS.exit} Cancel` },
-        ],
-    });
-
-    if (isCancel(action) || action === "back") return;
-
-    if (action === "clear_all") {
-        const confirmed = await confirm({
-            message: "WARNING: This will permanently purge ALL execution history from the VSAM database. Continue?",
-        });
-        if (confirmed && !isCancel(confirmed)) {
-            clearAllRecords();
-            console.log(GREEN(`\n  ${ICONS.check} All records purged from VSAM database.\n`));
-            await text({ message: "Press Enter to return..." });
-        }
-    }
 }

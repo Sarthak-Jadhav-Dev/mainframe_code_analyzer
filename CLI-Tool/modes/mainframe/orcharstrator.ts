@@ -302,11 +302,19 @@ function buildSimulatedReport(scanResult: ScanResult, simulateFailure: boolean =
 
 // ─── Pipeline ─────────────────────────────────────────────────────────────────
 
+export interface CodebasePipelineExecutionResult {
+    report: string;
+    jobNames: Record<string, string>;
+    datasetNames: Record<string, string>;
+    stages: Array<{ stage: string; returnCode: string; status: "PASS" | "FAIL" | "SIMULATED"; details?: string }>;
+    integrityVerified: boolean;
+}
+
 async function runHerculesPipeline(
     scanResult: ScanResult,
     config: MainframeConfig,
     testFailureCase: boolean = false,
-): Promise<string> {
+): Promise<CodebasePipelineExecutionResult> {
     const s = spinner();
 
     const jobNames = generateJobNames("AUD");
@@ -487,7 +495,60 @@ async function runHerculesPipeline(
     const sysout = await getJobSysout(jobNames.reportJob, config);
     success(`Report retrieved (${sysout.split("\n").length} lines)`);
 
-    return sysout || buildSimulatedReport(scanResult, testFailureCase);
+    const stages: Array<{ stage: string; returnCode: string; status: "PASS" | "FAIL" | "SIMULATED"; details?: string }> = [
+        {
+            stage: "Upload to MVS",
+            returnCode: uploadResult.returnCode !== undefined ? String(uploadResult.returnCode).padStart(4, "0") : "0000",
+            status: uploadResult.success ? "PASS" : "FAIL",
+            details: `Uploaded ${scanResult.records.length} records to ${datasets.inputDsn}`,
+        },
+        {
+            stage: "JCL SORT",
+            returnCode: sortResult.returnCode !== undefined ? String(sortResult.returnCode).padStart(4, "0") : "0000",
+            status: sortResult.success ? "PASS" : "FAIL",
+            details: `Sorted by TECH_NAME to ${datasets.sortedDsn}`,
+        },
+        {
+            stage: "COBOL Match-Merge",
+            returnCode: cobolResult.returnCode !== undefined ? String(cobolResult.returnCode).padStart(4, "0") : "0000",
+            status: cobolResult.success ? "PASS" : "FAIL",
+            details: `Matched against TECHREF to ${datasets.cobolOutDsn}`,
+        },
+        {
+            stage: "REXX Deduplication",
+            returnCode: rexxResult.returnCode !== undefined ? String(rexxResult.returnCode).padStart(4, "0") : "0000",
+            status: rexxResult.success ? "PASS" : "FAIL",
+            details: `Pruned duplicate files to ${datasets.rexxOutDsn}`,
+        },
+        {
+            stage: "Integrity Check",
+            returnCode: integrityResult.returnCode !== undefined ? String(integrityResult.returnCode).padStart(4, "0") : (testFailureCase ? "0012" : "0000"),
+            status: (integrityResult.success || (testFailureCase && integrityResult.returnCode === 12)) ? "PASS" : "FAIL",
+            details: testFailureCase ? "Failure test triggered COND discard" : "Record count verified and cataloged",
+        },
+    ];
+
+    return {
+        report: sysout || buildSimulatedReport(scanResult, testFailureCase),
+        jobNames: {
+            clean: jobNames.cleanJob || `CL${suffix}`.slice(0, 8),
+            upload: jobNames.uploadJob,
+            sort: jobNames.sortJob,
+            cobol: jobNames.cobolJob,
+            rexx: jobNames.rexxJob,
+            integrity: jobNames.integrityJob,
+            report: jobNames.reportJob,
+        },
+        datasetNames: {
+            input: datasets.inputDsn,
+            sorted: datasets.sortedDsn,
+            cobolOut: datasets.cobolOutDsn,
+            rexxOut: datasets.rexxOutDsn,
+            final: datasets.finalDsn,
+        },
+        stages,
+        integrityVerified: integrityResult.success,
+    };
 }
 
 // ─── Main Orchestrator ────────────────────────────────────────────────────────
@@ -699,23 +760,56 @@ export async function runMainframeMode(): Promise<void> {
 
     const isFailureTest = req4Choice === "failure";
 
-    let report: string;
+    let pipelineResult: CodebasePipelineExecutionResult;
     if (!herculesAvailable) {
         // ── Simulated Mode ──────────────────────────────────────────────
         step(7, "Simulated Pipeline (Hercules not running)");
-        report = buildSimulatedReport(scanResult, isFailureTest);
+        const rep = buildSimulatedReport(scanResult, isFailureTest);
+        pipelineResult = {
+            report: rep,
+            jobNames: {
+                clean: "SIM_CLEAN",
+                upload: "SIM_UPLOAD",
+                sort: "SIM_SORT",
+                cobol: "SIM_COB",
+                rexx: "SIM_REX",
+                integrity: "SIM_ITG",
+                report: "SIM_RPT",
+            },
+            datasetNames: {
+                input: "SIMULATED.AUDIT.INPUT",
+                sorted: "SIMULATED.AUDIT.SORTED",
+                cobolOut: "SIMULATED.AUDIT.COBOL",
+                rexxOut: "SIMULATED.AUDIT.REXX",
+                final: "SIMULATED.AUDIT.FINAL",
+            },
+            stages: [
+                { stage: "JCL SORT", returnCode: "0000", status: "SIMULATED", details: "Local simulated SORT pass" },
+                { stage: "COBOL Match-Merge", returnCode: "0000", status: "SIMULATED", details: "Local simulated COBOL matching" },
+                { stage: "REXX Deduplication", returnCode: "0000", status: "SIMULATED", details: "Local simulated REXX deduplication" },
+                { stage: "Integrity Check", returnCode: isFailureTest ? "0012" : "0000", status: isFailureTest ? "FAIL" : "SIMULATED", details: isFailureTest ? "Simulated count mismatch" : "Simulated count match" },
+            ],
+            integrityVerified: !isFailureTest,
+        };
     } else {
         // ── Hercules Pipeline ──────────────────────────────────────────────
         try {
-            report = await runHerculesPipeline(scanResult, config, isFailureTest);
+            pipelineResult = await runHerculesPipeline(scanResult, config, isFailureTest);
         } catch (err) {
             fail(`Pipeline error: ${err instanceof Error ? err.message : String(err)}`);
             warn("Falling back to simulated report.");
-            report = buildSimulatedReport(scanResult, isFailureTest);
+            const rep = buildSimulatedReport(scanResult, isFailureTest);
+            pipelineResult = {
+                report: rep,
+                jobNames: { error: "PIPELINE_FAILED" },
+                datasetNames: { final: "HERC01.AUDIT.FINAL" },
+                stages: [{ stage: "MVS Execution", returnCode: "FAIL", status: "FAIL", details: String(err) }],
+                integrityVerified: false,
+            };
         }
     }
 
-    displayReport(report, scanResult, repoPath);
+    displayReport(pipelineResult.report, scanResult, repoPath);
 
     // ── Save to VSAM Database ───────────────────────────────────────────
     const dbSpinner = spinner();
@@ -726,7 +820,7 @@ export async function runMainframeMode(): Promise<void> {
             repoPath,
             isFailureTest,
             herculesAvailable,
-            report,
+            pipelineResult,
         );
         dbSpinner.stop();
         if (dbResult.herculesSynced) {
@@ -739,7 +833,7 @@ export async function runMainframeMode(): Promise<void> {
         warn(`VSAM save warning: ${err instanceof Error ? err.message : String(err)}`);
     }
 
-    await offerSaveReport(report, scanResult, repoPath, isFailureTest);
+    await offerSaveReport(pipelineResult.report, scanResult, repoPath, isFailureTest);
 }
 
 // ─── Save Codebase Execution to VSAM ──────────────────────────────────────────
@@ -749,7 +843,7 @@ async function recordCodebaseExecutionToVsam(
     repoPath: string,
     isFailureTest: boolean,
     herculesAvailable: boolean,
-    report: string,
+    pipelineResult: CodebasePipelineExecutionResult,
 ) {
     const techCount: Record<string, { total: number; genuine: number; pseudo: number; unknown: number }> = {};
     let totalGenuine = 0;
@@ -808,29 +902,10 @@ async function recordCodebaseExecutionToVsam(
             status: status as any,
             mode: herculesAvailable ? "HERCULES_TK5" : "SIMULATED",
             telemetry: {
-                jobNames: {
-                    clean: "AUDCL100",
-                    upload: "AUDUP100",
-                    sort: "AUDSO100",
-                    cobol: "AUDCO100",
-                    rexx: "AUDRX100",
-                    integrity: "AUDIT100",
-                    report: "AUDRP100",
-                },
-                datasetNames: {
-                    input: "HERC01.AUDIT.INPUT",
-                    sorted: "HERC01.AUDIT.SORTED",
-                    cobolOut: "HERC01.AUDIT.COBOL",
-                    rexxOut: "HERC01.AUDIT.REXX",
-                    final: "HERC01.AUDIT.FINAL",
-                },
-                stages: [
-                    { stage: "JCL SORT", returnCode: "0000", status: herculesAvailable ? "PASS" : "SIMULATED", details: "Sorted by TECH_NAME (cols 41-50)" },
-                    { stage: "COBOL Match-Merge", returnCode: "0000", status: herculesAvailable ? "PASS" : "SIMULATED", details: "AUDCOBOL matched vs TECHREF table" },
-                    { stage: "REXX Deduplication", returnCode: "0000", status: herculesAvailable ? "PASS" : "SIMULATED", details: `AUDRXXX pruned ${duplicateFiles.length} duplicate files` },
-                    { stage: "Integrity Check", returnCode: isFailureTest ? "0012" : "0000", status: isFailureTest ? "FAIL" : (herculesAvailable ? "PASS" : "SIMULATED"), details: isFailureTest ? "Simulated count mismatch, output discarded" : "IBM SORT Descending count match verified" },
-                ],
-                integrityVerified: !isFailureTest,
+                jobNames: pipelineResult.jobNames,
+                datasetNames: pipelineResult.datasetNames,
+                stages: pipelineResult.stages,
+                integrityVerified: pipelineResult.integrityVerified,
                 isFailureTest,
             },
             codebaseDetails: {
@@ -848,7 +923,7 @@ async function recordCodebaseExecutionToVsam(
                 subScope: scanResult.subScope,
                 targetSubpaths: scanResult.targetSubpaths,
             },
-            reportContent: report,
+            reportContent: pipelineResult.report,
         },
         herculesAvailable,
     );

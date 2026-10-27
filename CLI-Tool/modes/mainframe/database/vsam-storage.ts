@@ -12,7 +12,6 @@ import path from "node:path";
 import type {
     MainframeExecutionRecord,
     VsamQueryFilter,
-    VsamClusterMetadata,
     ExecutionType,
 } from "./types.ts";
 import {
@@ -24,7 +23,6 @@ import {
 import {
     buildVsamDefineClusterJcl,
     buildVsamReproJcl,
-    buildVsamPrintJcl,
     VSAM_CLUSTER_NAME,
     VSAM_DATASET_NAME,
 } from "./vsam-jcl.ts";
@@ -207,72 +205,7 @@ export function deleteRecord(id: string): boolean {
     return false;
 }
 
-/** Clear all records from the database */
-export function clearAllRecords(): void {
-    saveAllRecords([]);
-}
 
-/** Get VSAM Cluster metadata */
-export function getClusterMetadata(): VsamClusterMetadata {
-    const records = loadAllRecords();
-    const datSize = fs.existsSync(VSAM_DAT_PATH) ? fs.statSync(VSAM_DAT_PATH).size : records.length * VSAM_RECORD_LENGTH;
-    const ciSize = 4096; // Standard 4K Control Interval for DASD 3390
-    const recordsPerCi = Math.floor((ciSize - 10) / VSAM_RECORD_LENGTH); // 25 records per CI
-    const ciCount = Math.max(1, Math.ceil(records.length / recordsPerCi));
-
-    return {
-        clusterName: VSAM_CLUSTER_NAME,
-        dataComponentName: `${VSAM_CLUSTER_NAME}.DATA`,
-        indexComponentName: `${VSAM_CLUSTER_NAME}.INDEX`,
-        volumeSerial: "WORK01",
-        organization: "INDEXED (KSDS)",
-        keyOffset: 0,
-        keyLength: 28,
-        recordSize: {
-            average: VSAM_RECORD_LENGTH,
-            maximum: VSAM_RECORD_LENGTH,
-        },
-        controlIntervalSize: ciSize,
-        totalRecords: records.length,
-        highAllocatedRba: ciCount * ciSize,
-        highUsedRba: datSize,
-        lastUpdated: (records.length > 0 && records[0]) ? records[0].timestamp : new Date().toISOString(),
-    };
-}
-
-/** Run live IDCAMS PRINT job on Hercules TK5 */
-export async function runLiveIdcamsPrint(): Promise<{ success: boolean; sysout: string; error?: string }> {
-    const config = defaultMainframeConfig();
-    const conn = await checkHerculesConnectivity(config);
-    if (!conn.online) {
-        return {
-            success: false,
-            sysout: "",
-            error: "Hercules TK5 is offline. Ensure Hercules is running on ports 3505/8038.",
-        };
-    }
-
-    const rand = Math.floor(Math.random() * 9000 + 1000).toString();
-    const jobName = `AUVP${rand}`;
-    const jcl = buildVsamPrintJcl(jobName, VSAM_DATASET_NAME, config.user, config.password);
-
-    try {
-        await submitJcl(jcl, config);
-        const res = await pollJobUntilComplete(jobName, config);
-        const sysout = await getJobSysout(jobName, config);
-        return {
-            success: res.success || Boolean(sysout),
-            sysout: sysout || "IDCAMS PRINT executed. SYSOUT captured.",
-            error: res.error,
-        };
-    } catch (err) {
-        return {
-            success: false,
-            sysout: "",
-            error: err instanceof Error ? err.message : String(err),
-        };
-    }
-}
 
 /**
  * Auto-seed database from existing audit reports in the CLI directory
@@ -354,6 +287,49 @@ function parseAssignmentTxtReport(
 
         const vsamRecord = serializeToVsamRecord(partial);
 
+        // Parse stages dynamically from Section 5
+        const stages: Array<{ stage: string; returnCode: string; status: "PASS" | "FAIL" | "SIMULATED"; details?: string }> = [];
+        const stageMatches = content.matchAll(/\[STAGE\s*(\d+)\]\s*([^:]+):\s*RC=(\d+|[A-Z0-9]+)\s*([✓✗⚠\s]*[A-Z]+)/gi);
+        for (const sm of stageMatches) {
+            const stNum = sm[1];
+            const stName = sm[2]?.trim() || `Stage ${stNum}`;
+            const rc = sm[3]?.trim().padStart(4, "0") || "0000";
+            const stStatus = sm[4]?.toUpperCase().includes("PASS") ? "PASS" : sm[4]?.toUpperCase().includes("SIM") ? "SIMULATED" : "FAIL";
+            stages.push({
+                stage: `[STAGE ${stNum}] ${stName}`,
+                returnCode: rc,
+                status: stStatus as any,
+                details: `Extracted from audit log (RC=${rc})`,
+            });
+        }
+
+        if (stages.length === 0) {
+            stages.push(
+                { stage: "[STAGE 0] Upload to MVS", returnCode: "0000", status: "PASS", details: "Uploaded code blocks" },
+                { stage: "[STAGE 1] JCL SORT", returnCode: "0000", status: "PASS", details: "Sorted extracted code" },
+                { stage: "[STAGE 2] COBOL Match-Merge", returnCode: "0000", status: "PASS", details: "Matched against syllabus" },
+                { stage: "[STAGE 3] REXX Deduplication", returnCode: "0000", status: "PASS", details: "Deduplicated by MD5 hash" },
+                { stage: "[STAGE 4] Integrity Check", returnCode: "0000", status: "PASS", details: "Verified record count integrity" },
+            );
+        }
+
+        // Parse suggestions dynamically from Section 4
+        const suggestions: string[] = [];
+        const suggMatches = content.matchAll(/\d+\.\s*\[[✓✗LOWMEDHIGH\s]+\]\s*\[[^\]]+\]\s*[\r\n]+\s*([^\r\n]+)/gi);
+        for (const sug of suggMatches) {
+            if (sug[1]) suggestions.push(sug[1].trim());
+        }
+
+        // Derive actual job names from document name prefix
+        const docPrefix = targetName.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4);
+        const jobNames = {
+            upload: `UP${docPrefix}`.slice(0, 8),
+            sort: `SO${docPrefix}`.slice(0, 8),
+            cobol: `CO${docPrefix}`.slice(0, 8),
+            rexx: `RX${docPrefix}`.slice(0, 8),
+            integrity: `IT${docPrefix}`.slice(0, 8),
+        };
+
         return {
             id,
             executionType: "ASSIGNMENT",
@@ -371,14 +347,9 @@ function parseAssignmentTxtReport(
             status: "PASS",
             mode: "HERCULES_TK5",
             telemetry: {
-                jobNames: { sort: "AUSO1001", cobol: "AUCO1001", rexx: "AURX1001", integrity: "AUIT1001" },
+                jobNames,
                 datasetNames: { final: "HERC01.AUDIT.FINAL" },
-                stages: [
-                    { stage: "JCL SORT", returnCode: "0000", status: "PASS", details: "Sorted extracted code by language & size" },
-                    { stage: "COBOL Match-Merge", returnCode: "0000", status: "PASS", details: "Matched against syllabus keywords" },
-                    { stage: "REXX Deduplication", returnCode: "0000", status: "PASS", details: "Deduplicated by MD5 hash" },
-                    { stage: "Integrity Check", returnCode: "0000", status: "PASS", details: "Verified record count integrity" },
-                ],
+                stages,
                 integrityVerified: true,
                 isFailureTest: false,
             },
@@ -394,7 +365,7 @@ function parseAssignmentTxtReport(
                 textBlocks: blocks,
                 ocrBlocks: 0,
                 overallOptimizationGrade: grade,
-                suggestions: ["Optimization verified on TK5 batch runner."],
+                suggestions: suggestions.length > 0 ? suggestions : ["Optimization verified on TK5 batch runner."],
                 codeBlocks: [],
             },
             vsamRecord,
@@ -447,6 +418,18 @@ function parseCodebaseTxtReport(
 
         const vsamRecord = serializeToVsamRecord(partial);
 
+        // Parse actual job names and datasets from JES2 spool log if present
+        const reportJobMatch = content.match(/\/\/(AUD[A-Z0-9]+)\s+JOB/i) || content.match(/\$HASP373\s+([A-Z0-9]+)/i);
+        const reportJobName = reportJobMatch?.[1]?.trim() || "AUDRP100";
+        const suffixMatch = reportJobName.match(/(\d+)$/);
+        const suffix = suffixMatch ? suffixMatch[1] : "100";
+
+        const finalDsnMatch = content.match(/DSN=([A-Z0-9.]+)/i);
+        const finalDsn = finalDsnMatch?.[1]?.trim() || `HERC01.AUDIT.FINAL.${suffix}`;
+
+        const rcMatch = content.match(/COND CODE\s+(\d+)/i) || content.match(/RC=\s*(\d+)/i);
+        const rcVal = rcMatch?.[1] ? `RC=${rcMatch[1].padStart(4, "0")}` : "RC=0000";
+
         return {
             id,
             executionType: "CODEBASE_PROJECT",
@@ -460,12 +443,24 @@ function parseCodebaseTxtReport(
             grade,
             primaryScore: score,
             recordCount: recCount,
-            returnCode: "RC=0000",
+            returnCode: rcVal,
             status: "PASS",
             mode: "HERCULES_TK5",
             telemetry: {
-                jobNames: { sort: "AUSO212", cobol: "AUCO212", rexx: "AURX212", integrity: "AUIT212", report: "AUDRP212" },
-                datasetNames: { final: "HERC01.AUDIT.FINAL.DP212" },
+                jobNames: {
+                    clean: `CL${suffix}`.slice(0, 8),
+                    upload: `AUUP${suffix}`.slice(0, 8),
+                    sort: `AUSO${suffix}`.slice(0, 8),
+                    cobol: `AUCO${suffix}`.slice(0, 8),
+                    rexx: `AURX${suffix}`.slice(0, 8),
+                    integrity: `AUIT${suffix}`.slice(0, 8),
+                    report: reportJobName,
+                },
+                datasetNames: {
+                    input: `HERC01.AUDIT.INPUT.${suffix}`,
+                    sorted: `HERC01.AUDIT.SORTED.${suffix}`,
+                    final: finalDsn,
+                },
                 stages: [
                     { stage: "JCL SORT", returnCode: "0000", status: "PASS", details: "Sorted records by TECH_NAME" },
                     { stage: "COBOL Match-Merge", returnCode: "0000", status: "PASS", details: "AUDCOBOL matched vs TECHREF" },
@@ -483,7 +478,7 @@ function parseCodebaseTxtReport(
                 unknownCount: 0,
                 duplicateCount: 0,
                 duplicateFiles: [],
-                technologies: [{ technology: "Node/Bun", total: recCount, genuine: 1, pseudo: 0, unknown: 0 }],
+                technologies: [{ technology: "Node/Bun", total: recCount, genuine: score > 0 ? 1 : 0, pseudo: score === 0 ? 1 : 0, unknown: 0 }],
                 subScope: scope,
             },
             vsamRecord,
