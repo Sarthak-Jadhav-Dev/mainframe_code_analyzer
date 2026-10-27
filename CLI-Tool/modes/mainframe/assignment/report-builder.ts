@@ -137,6 +137,9 @@ function buildSection5(report: AssignmentAuditReport): string[] {
                            stage.status === "SIMULATED" ? ICONS.warn :
                            ICONS.error;
         lines.push(boxLine(`${stage.stage.padEnd(32)}: RC=${stage.returnCode} ${statusIcon} ${stage.status}`));
+        if (stage.status === "FAIL" && stage.details) {
+            lines.push(boxLine(`    ↳ ${stage.details.slice(0, 56)}`));
+        }
     }
 
     lines.push(boxLine(""));

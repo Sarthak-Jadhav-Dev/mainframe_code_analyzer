@@ -30,6 +30,7 @@ import {
     buildCobolJcl,
     buildRexxJcl,
     buildStep4IntegrityJcl,
+    buildDeleteDatasetsJcl,
     generateJobNames,
     buildDatasetNames,
 } from "../jcl-templates.ts";
@@ -150,25 +151,56 @@ async function runAssignmentTk5Pipeline(
 
     const docBasename = path.basename(docPath, path.extname(docPath)).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
     const jobNames = generateJobNames(`A${docBasename.slice(0, 2)}`);
-    const suffix = jobNames.uploadJob.slice(-4);
+    const suffix = jobNames.suffix || jobNames.uploadJob.slice(-4);
     const datasets = buildDatasetNames(config.datasetPrefix, suffix);
 
     const inlineData = blocksToInlineData(blocks);
     const stages: TK5StageResult[] = [];
+    const formatRc = (rc?: number) => (rc !== undefined ? String(rc).padStart(4, "0") : "XXXX");
 
-    // Stage 1: Upload
+    // Pre-execution cleanup: Ensure dataset names on WORK01 are deleted before allocation
+    try {
+        const cleanJcl = buildDeleteDatasetsJcl(
+            jobNames.cleanJob || `CL${suffix}`.slice(0, 8),
+            [datasets.inputDsn, datasets.sortedDsn, datasets.cobolOutDsn, datasets.rexxOutDsn, datasets.finalDsn],
+            config.user,
+            config.password,
+        );
+        await submitJcl(cleanJcl, config);
+        await pollJobUntilComplete(jobNames.cleanJob || `CL${suffix}`.slice(0, 8), config);
+    } catch {
+        // Proceed even if cleanup polling has an issue
+    }
+
+    // Stage 0: Upload
+    let uploadSuccess = false;
     try {
         const uploadJcl = buildUploadJcl(jobNames.uploadJob, datasets.inputDsn, inlineData, 80, config.user, config.password);
         await submitJcl(uploadJcl, config);
         const uploadResult = await pollJobUntilComplete(jobNames.uploadJob, config);
+        uploadSuccess = uploadResult.success;
         stages.push({
             stage: "[STAGE 0] Upload to MVS",
-            returnCode: uploadResult.returnCode ?? "XXXX",
+            returnCode: formatRc(uploadResult.returnCode),
             status: uploadResult.success ? "PASS" : "FAIL",
-            details: uploadResult.success ? "Assignment records uploaded" : (uploadResult.error ?? "Unknown error"),
+            details: uploadResult.success ? "Assignment records uploaded" : (uploadResult.error ?? "Upload failed"),
         });
     } catch (e) {
         stages.push({ stage: "[STAGE 0] Upload to MVS", returnCode: "FAIL", status: "FAIL", details: String(e) });
+    }
+
+    if (!uploadSuccess) {
+        stages.push(
+            { stage: "[STAGE 1] JCL SORT (by LANG_NAME)", returnCode: "SKIP", status: "FAIL", details: "Skipped: MVS Upload failed" },
+            { stage: "[STAGE 2] COBOL Match-Merge", returnCode: "SKIP", status: "FAIL", details: "Skipped: MVS Upload failed" },
+            { stage: "[STAGE 3] REXX Deduplication", returnCode: "SKIP", status: "FAIL", details: "Skipped: MVS Upload failed" },
+            { stage: "[STAGE 4] Integrity Check", returnCode: "SKIP", status: "FAIL", details: "Skipped: MVS Upload failed" },
+        );
+        return {
+            stages,
+            duplicatesFound: 0,
+            integrityVerified: false,
+        };
     }
 
     // Stage 1: SORT
@@ -178,12 +210,12 @@ async function runAssignmentTk5Pipeline(
         const sortResult = await pollJobUntilComplete(jobNames.sortJob, config);
         stages.push({
             stage: "[STAGE 1] JCL SORT (by LANG_NAME)",
-            returnCode: sortResult.returnCode ?? "XXXX",
+            returnCode: formatRc(sortResult.returnCode),
             status: sortResult.success ? "PASS" : "FAIL",
-            details: sortResult.success ? "Sorted by language name" : (sortResult.error ?? ""),
+            details: sortResult.success ? "Sorted by language name" : (sortResult.error ?? "Sort failed"),
         });
     } catch (e) {
-        stages.push({ stage: "[STAGE 1] JCL SORT", returnCode: "FAIL", status: "FAIL", details: String(e) });
+        stages.push({ stage: "[STAGE 1] JCL SORT (by LANG_NAME)", returnCode: "FAIL", status: "FAIL", details: String(e) });
     }
 
     // Stage 2: COBOL
@@ -193,9 +225,9 @@ async function runAssignmentTk5Pipeline(
         const cobolResult = await pollJobUntilComplete(jobNames.cobolJob, config);
         stages.push({
             stage: "[STAGE 2] COBOL Match-Merge",
-            returnCode: cobolResult.returnCode ?? "XXXX",
+            returnCode: formatRc(cobolResult.returnCode),
             status: cobolResult.success ? "PASS" : "FAIL",
-            details: cobolResult.success ? "Language matched against TECHREF" : (cobolResult.error ?? ""),
+            details: cobolResult.success ? "Language matched against TECHREF" : (cobolResult.error ?? "COBOL match failed"),
         });
     } catch (e) {
         stages.push({ stage: "[STAGE 2] COBOL Match-Merge", returnCode: "FAIL", status: "FAIL", details: String(e) });
@@ -208,9 +240,9 @@ async function runAssignmentTk5Pipeline(
         const rexxResult = await pollJobUntilComplete(jobNames.rexxJob, config);
         stages.push({
             stage: "[STAGE 3] REXX Deduplication",
-            returnCode: rexxResult.returnCode ?? "XXXX",
+            returnCode: formatRc(rexxResult.returnCode),
             status: rexxResult.success ? "PASS" : "FAIL",
-            details: rexxResult.success ? "Duplicate code blocks pruned" : (rexxResult.error ?? ""),
+            details: rexxResult.success ? "Duplicate code blocks pruned" : (rexxResult.error ?? "REXX deduplication failed"),
         });
     } catch (e) {
         stages.push({ stage: "[STAGE 3] REXX Deduplication", returnCode: "FAIL", status: "FAIL", details: String(e) });
@@ -225,9 +257,9 @@ async function runAssignmentTk5Pipeline(
         integrityVerified = integrityResult.success;
         stages.push({
             stage: "[STAGE 4] Integrity Check",
-            returnCode: integrityResult.returnCode ?? "XXXX",
+            returnCode: formatRc(integrityResult.returnCode),
             status: integrityResult.success ? "PASS" : "FAIL",
-            details: integrityResult.success ? "Record counts verified" : (integrityResult.error ?? ""),
+            details: integrityResult.success ? "Record counts verified" : (integrityResult.error ?? "Integrity check failed"),
         });
     } catch (e) {
         stages.push({ stage: "[STAGE 4] Integrity Check", returnCode: "FAIL", status: "FAIL", details: String(e) });
@@ -235,7 +267,7 @@ async function runAssignmentTk5Pipeline(
 
     return {
         stages,
-        duplicatesFound: 0, // REXX output would tell us — leave at 0 for live run
+        duplicatesFound: 0,
         integrityVerified,
     };
 }
@@ -325,7 +357,7 @@ export async function runAssignmentMode(): Promise<void> {
     info(`  Pages         : ${parsedDoc.pageCount}`);
     info(`  Selectable code blocks (from text) : ${parsedDoc.textCodeBlocks.length}`);
     info(`  Images / rendered pages for OCR    : ${parsedDoc.images.length}`);
-    info(`  Z_IDs found   : ${parsedDoc.zIds.length > 0 ? parsedDoc.zIds.join(", ") : "None detected"}`);
+    info(`  ID's found    : ${parsedDoc.zIds.length > 0 ? parsedDoc.zIds.join(", ") : "None detected"}`);
 
     if (isPdf && parsedDoc.images.length > 0) {
         info(`  ${ICONS.check} Each PDF page has been rendered as a PNG image — screenshot code will be OCR'd.`);

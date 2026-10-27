@@ -1,0 +1,101 @@
+
+══════════════════════════════════════════════════════════════════════
+  MAINFRAME ASSIGNMENT AUDITOR — ASSIGNMENT EVALUATION REPORT
+══════════════════════════════════════════════════════════════════════
+  Document       : TYCS-E-Sarthak_Jadhav-MFT-Assignment-7.docx
+  File Type      : DOCX
+  Pages          : 1
+  Code Blocks    : 8
+  Z_IDs Detected : 12413357
+  Audit Time     : 2026-10-27T04:05:51.704Z
+  Problem Stmt   : To understand and implement the PERFORM VARYING statement in...
+
+  ┌──────────────────────────────────────────────────────────────────┐
+  │   SECTION 1: ASSIGNMENT COMPLETION STATUS                        │
+  ├──────────────────────────────────────────────────────────────────┤
+  │   Verdict             : ✓ COMPLETED                              │
+  │   Problem Match       : 100%                                     │
+  │   Plagiarism Check    : 0%                                       │
+  │   Requirements Met    : 3 / 3                                    │
+  └──────────────────────────────────────────────────────────────────┘
+
+  ┌──────────────────────────────────────────────────────────────────┐
+  │   SECTION 2: STUDENT ID / Z_ID CONSISTENCY CHECK                 │
+  ├──────────────────────────────────────────────────────────────────┤
+  │   Identities Detected : 12413357                                 │
+  │   Consistency         : ✓ CONSISTENT                             │
+  │   Details             : All pages reference the same student ... │
+  └──────────────────────────────────────────────────────────────────┘
+
+  ┌──────────────────────────────────────────────────────────────────┐
+  │   SECTION 3: CODE OPTIMIZATION ANALYSIS                          │
+  ├──────────────────────────────────────────────────────────────────┤
+  │   Overall Grade       : A                                        │
+  │   Code Blocks Analyzed: 8                                        │
+  │                                                                  │
+  │     [Block 1] COBOL                                              │
+  │       Grade           : A                                        │
+  │       Time Complexity : O(n) - Linear                            │
+  │       Space Complexity: O(1) - Constant                          │
+  │       Code Smells     : 0                                        │
+  │       ⚠ Clean implementation detected in COBOL (1 lines).        │
+  │                                                                  │
+  │     [Block 2] COBOL                                              │
+  │       Grade           : A                                        │
+  │       Time Complexity : O(n) - Linear                            │
+  │       Space Complexity: O(1) - Constant                          │
+  │       Code Smells     : 0                                        │
+  │       ⚠ Clean implementation detected in COBOL (1 lines).        │
+  │                                                                  │
+  │     [Block 3] COBOL                                              │
+  │       Grade           : A                                        │
+  │       Time Complexity : O(n) - Linear                            │
+  │       Space Complexity: O(1) - Constant                          │
+  │       Code Smells     : 0                                        │
+  │       ⚠ Clean implementation detected in COBOL (1 lines).        │
+  │                                                                  │
+  │     [Block 4] COBOL                                              │
+  │       Grade           : A                                        │
+  │       Time Complexity : O(n) - Linear                            │
+  │       Space Complexity: O(1) - Constant                          │
+  │       Code Smells     : 0                                        │
+  │       ⚠ Clean implementation detected in COBOL (1 lines).        │
+  │                                                                  │
+  │     [Block 5] COBOL                                              │
+  │       Grade           : A                                        │
+  │       Time Complexity : O(n) - Linear                            │
+  │       Space Complexity: O(1) - Constant                          │
+  │       Code Smells     : 0                                        │
+  │       ⚠ Clean implementation detected in COBOL (21 lines).       │
+  │                                                                  │
+  └──────────────────────────────────────────────────────────────────┘
+
+  ┌──────────────────────────────────────────────────────────────────┐
+  │   SECTION 4: SUGGESTIONS FOR IMPROVEMENT                         │
+  ├──────────────────────────────────────────────────────────────────┤
+  │   1. [✓LOW   ] [Formatting]                                      │
+  │      Successfully audited 8 code block(s) (48 total lines) in C  │
+  │      OBOL, Unknown, JCL.                                         │
+  │                                                                  │
+  │   2. [✓LOW   ] [Best Practice]                                   │
+  │      Ensure all paragraph headers and division boundaries inclu  │
+  │      de descriptive comment headers for documentation.           │
+  │                                                                  │
+  └──────────────────────────────────────────────────────────────────┘
+
+  ┌──────────────────────────────────────────────────────────────────┐
+  │   SECTION 5: MAINFRAME PIPELINE VERIFICATION (TK5)               │
+  ├──────────────────────────────────────────────────────────────────┤
+  │   [STAGE 0] Upload to MVS         : RC=0000 ✓ PASS               │
+  │   [STAGE 1] JCL SORT (by LANG_NAME): RC=0000 ✓ PASS              │
+  │   [STAGE 2] COBOL Match-Merge     : RC=0000 ✓ PASS               │
+  │   [STAGE 3] REXX Deduplication    : RC=0000 ✓ PASS               │
+  │   [STAGE 4] Integrity Check       : RC=0000 ✓ PASS               │
+  │                                                                  │
+  │   Duplicate Blocks Detected : 0                                  │
+  │   Integrity Verified        : ✓ YES                              │
+  └──────────────────────────────────────────────────────────────────┘
+
+══════════════════════════════════════════════════════════════════════
+  END OF ASSIGNMENT AUDIT REPORT
+══════════════════════════════════════════════════════════════════════

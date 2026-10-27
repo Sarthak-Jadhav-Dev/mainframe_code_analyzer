@@ -34,6 +34,7 @@ import {
     buildRexxJcl,
     buildStep4IntegrityJcl,
     buildReportJcl,
+    buildDeleteDatasetsJcl,
     generateJobNames,
     buildDatasetNames,
 } from "./jcl-templates.ts";
@@ -308,10 +309,24 @@ async function runHerculesPipeline(
     const s = spinner();
 
     const jobNames = generateJobNames("AUD");
-    const suffix = jobNames.uploadJob.slice(-4);
+    const suffix = jobNames.suffix || jobNames.uploadJob.slice(-4);
     const datasets = buildDatasetNames(config.datasetPrefix, suffix);
 
     const flatFileContent = flatFileToInlineData(scanResult);
+
+    // Pre-execution cleanup: Ensure dataset names on WORK01 are deleted before allocation
+    try {
+        const cleanJcl = buildDeleteDatasetsJcl(
+            jobNames.cleanJob || `CL${suffix}`.slice(0, 8),
+            [datasets.inputDsn, datasets.sortedDsn, datasets.cobolOutDsn, datasets.rexxOutDsn, datasets.finalDsn],
+            config.user,
+            config.password,
+        );
+        await submitJcl(cleanJcl, config);
+        await pollJobUntilComplete(jobNames.cleanJob || `CL${suffix}`.slice(0, 8), config);
+    } catch {
+        // Proceed even if cleanup polling has an issue
+    }
 
     // ── Upload ──────────────────────────────────────────────────────────
     step(6, "Uploading flat file to MVS");

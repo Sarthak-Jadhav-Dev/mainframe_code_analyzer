@@ -46,25 +46,60 @@ function makeJobCard(
 }
 
 export interface JclJobNames {
+    cleanJob: string;
     uploadJob: string;
     sortJob: string;
     cobolJob: string;
     rexxJob: string;
     integrityJob: string;
     reportJob: string;
+    suffix: string;
 }
 
 /** Generate a set of unique job names for this pipeline run */
-export function generateJobNames(prefix: string = "AUD"): JclJobNames {
+export function generateJobNames(prefix: string = "AU"): JclJobNames {
     const s = jobSuffix();
+    const p = prefix.slice(0, 2);
     return {
-        uploadJob    : (prefix + "UP" + s).slice(0, 8),
-        sortJob      : (prefix + "SO" + s).slice(0, 8),
-        cobolJob     : (prefix + "CO" + s).slice(0, 8),
-        rexxJob      : (prefix + "RX" + s).slice(0, 8),
-        integrityJob : (prefix + "IT" + s).slice(0, 8),
-        reportJob    : (prefix + "RP" + s).slice(0, 8),
+        cleanJob     : `${p}CL${s}`.slice(0, 8),
+        uploadJob    : `${p}UP${s}`.slice(0, 8),
+        sortJob      : `${p}SO${s}`.slice(0, 8),
+        cobolJob     : `${p}CO${s}`.slice(0, 8),
+        rexxJob      : `${p}RX${s}`.slice(0, 8),
+        integrityJob : `${p}IT${s}`.slice(0, 8),
+        reportJob    : `${p}RP${s}`.slice(0, 8),
+        suffix       : s,
     };
+}
+
+// --- Pre-Step: Cleanup datasets before allocation -----------------------------
+
+/**
+ * JCL to delete datasets via IDCAMS (prevents DUPLICATE NAME ON DIRECT ACCESS VOLUME).
+ * Uses SET MAXCC = 0 so missing datasets don't cause job failure.
+ */
+export function buildDeleteDatasetsJcl(
+    jobName: string,
+    datasetNames: string[],
+    user: string = "HERC01",
+    password: string = "CUL8TR",
+): string {
+    const name = jclName(jobName);
+    const deleteStmts = datasetNames
+        .filter(Boolean)
+        .map((dsn) => `  DELETE ${dsn} NONVSAM SCRATCH`)
+        .join("\n");
+
+    return [
+        ...makeJobCard(name, "AUDIT-CLEANUP", user, password),
+        `//STEP01   EXEC PGM=IDCAMS`,
+        `//SYSPRINT DD SYSOUT=*`,
+        `//SYSIN    DD *`,
+        deleteStmts,
+        `  SET MAXCC = 0`,
+        `/*`,
+        "",
+    ].join("\n");
 }
 
 // --- Step 1: Upload flat file data to MVS dataset ----------------------------
